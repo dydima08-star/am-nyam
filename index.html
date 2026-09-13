@@ -9,7 +9,7 @@
   потому что модули не работают при открытии файла через file://.
 -->
 <html lang="ru">
-<!-- AMNYAM-VERSION: 6 -->
+<!-- AMNYAM-VERSION: 7 -->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -10114,9 +10114,26 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     return false;
   }
 
+  // Сервер PeerJS строго проверяет сообщения: без полей настоящей библиотеки
+  // (type, connectionId, …) он молча закрывает соединение. Поэтому каждое
+  // сообщение дополняем этими полями.
+  var CONN_ID = 'dc_' + Math.random().toString(36).slice(2, 12);
+
+  function peerPayload(extra) {
+    var p = { type: 'data', connectionId: CONN_ID, browser: 'chrome' };
+    for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) p[k] = extra[k];
+    return p;
+  }
+
+  // «Стук» тоже должен выглядеть как настоящий адрес, иначе сервер его не пропустит
+  var POKE_CANDIDATE = {
+    candidate: 'candidate:1 1 udp 2122260223 192.168.1.5 54321 typ host generation 0',
+    sdpMid: '0', sdpMLineIndex: 0
+  };
+
   function relay(type, payload) {
     if (!mateId) return;
-    wsSend({ type: type, dst: mateId, payload: payload });
+    wsSend({ type: type, dst: mateId, payload: peerPayload(payload) });
   }
 
   /* ----- связь с сервером-знакомств: открываем и держим ------------------- */
@@ -10246,7 +10263,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       clearInterval(pokeTimer);
       pokeTimer = setInterval(function () {
         if (Net.state === 'open') { clearInterval(pokeTimer); return; }
-        wsSend({ type: 'CANDIDATE', dst: guestId(), payload: { poke: 1 } });
+        wsSend({ type: 'CANDIDATE', dst: guestId(), payload: peerPayload({ candidate: POKE_CANDIDATE, poke: 1 }) });
       }, 3000);
     } else {
       mateId = hostId();
@@ -10274,7 +10291,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   function sendOffer() {
     if (Net.state === 'open') { clearInterval(offerTimer); return; }
     if (!pc || !pc.localDescription) return;
-    if (!wsSend({ type: 'OFFER', dst: mateId, payload: { sdp: pc.localDescription } })) {
+    var offer = peerPayload({
+      sdp: pc.localDescription, label: CONN_ID, reliable: true, serialization: 'json'
+    });
+    if (!wsSend({ type: 'OFFER', dst: mateId, payload: offer })) {
       log('приглашение не ушло — нет связи с сервером');
       return;
     }
@@ -10293,7 +10313,8 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     pc = new RTCPeerConnection(ICE);
 
     pc.onicecandidate = function (e) {
-      if (!e.candidate) return;
+      // Пустой «конец списка» сервер считает ошибкой и рвёт связь — не шлём его
+      if (!e.candidate || !e.candidate.candidate) return;
       myCandidates.push(e.candidate);
       relay('CANDIDATE', { candidate: e.candidate });
     };
@@ -10361,6 +10382,14 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   function onOffer(payload) {
     if (!payload || !payload.sdp) return;
     if (Net.state === 'open') return;          // уже играем — второе не нужно
+
+    // Гость повторяет одно и то же приглашение, пока не получит ответ.
+    // Уже начатое соединение не ломаем — просто ещё раз отправляем ответ.
+    if (pc && pc.remoteDescription && pc.localDescription &&
+        pc.remoteDescription.sdp === payload.sdp.sdp) {
+      relay('ANSWER', { sdp: pc.localDescription });
+      return;
+    }
 
     status('connecting', '', 'второй игрок нашёлся, соединяемся…');
     log('отвечаем напарнику');
@@ -11629,7 +11658,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   'use strict';
 
   var Game = {
-    VERSION: 6,          // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 7,          // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
