@@ -9,7 +9,7 @@
   потому что модули не работают при открытии файла через file://.
 -->
 <html lang="ru">
-<!-- AMNYAM-VERSION: 7 -->
+<!-- AMNYAM-VERSION: 8 -->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1063,6 +1063,9 @@ body.touch .home-panel { touch-action: pan-y; }
 .net-hint { margin: 0.4cqw 0 1.2cqw; font-size: 1.4cqw; font-weight: 800; color: var(--cocoa-soft); }
 .net-body { display: flex; flex-direction: column; align-items: center; gap: 0.9cqw; }
 .net-body .btn { min-width: 26cqw; }
+.net-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.8cqw; }
+.net-row .btn { min-width: 22cqw; }
+.net-sync { font-size: 1.25cqw; font-weight: 800; color: var(--cocoa-soft); }
 
 .net-code-big {
   font-size: 6cqw;
@@ -1533,8 +1536,8 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
               <div class="portrait"><img id="portrait-omnom" alt="Ам Ням"></div>
               <figcaption>
                 <b>Ам Ням</b>
-                <span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
-                <span class="keys">удар: <kbd>E</kbd> / <kbd>Пробел</kbd></span>
+                <span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> или стрелки</span>
+                <span class="keys">удар: <kbd>Пробел</kbd> / <kbd>Enter</kbd></span>
               </figcaption>
             </figure>
 
@@ -1544,46 +1547,27 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
               <div class="portrait"><img id="portrait-cat" alt="Белая кошечка"></div>
               <figcaption>
                 <b>Кошечка</b>
-                <span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>
-                <span class="keys">удар: <kbd>Enter</kbd></span>
+                <span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> или WASD</span>
+                <span class="keys">удар: <kbd>Пробел</kbd> / <kbd>Enter</kbd></span>
               </figcaption>
             </figure>
           </div>
 
+          <!-- Игра только вдвоём: каждый со своего устройства, прогресс общий -->
           <div class="buttons">
-            <button id="btn-solo" class="btn btn-green" type="button">
-              <span class="btn-title">Один игрок</span>
-              <span class="btn-sub">кошечка играет сама</span>
-            </button>
-            <button id="btn-duo" class="btn btn-pink" type="button">
-              <span class="btn-title">Двое</span>
-              <span class="btn-sub">за одной клавиатурой</span>
-            </button>
-          </div>
-
-          <div class="menu-endless">
             <button id="btn-online" class="btn btn-blue" type="button">
-              <span class="btn-title">🌐 Играть по сети</span>
-              <span class="btn-sub">вдвоём с разных телефонов</span>
-            </button>
-          </div>
-
-          <div class="menu-endless">
-            <button id="btn-endless" class="btn btn-violet" type="button">
-              <span class="btn-title">♾ Бесконечная волна</span>
-              <span class="btn-sub" id="endless-sub">сколько продержитесь?</span>
+              <span class="btn-title">🌐 Играть вдвоём</span>
+              <span class="btn-sub">каждый со своего телефона или компьютера</span>
             </button>
           </div>
 
           <div class="menu-extra">
             <button class="btn-sound btn-sound-menu" type="button" title="Звук">🔊</button>
-            <button id="btn-shop" class="btn-shop" type="button">🗡 Лавка мечей</button>
-            <button id="btn-home" class="btn-shop btn-home" type="button">🏠 Домик</button>
           </div>
 
-          <p class="hint hint-keys">Быстрый выбор: <kbd>1</kbd> — один игрок, <kbd>2</kbd> — двое</p>
-          <p class="hint hint-touch">Управление пальцем: слева — джойстик, справа — удар.
-            «Двое» — экран делится пополам, удобнее на планшете.</p>
+          <p class="hint">Один создаёт комнату и выбирает героя, второй входит по коду или ссылке.
+            Конфеты, покупки и пройденные миры — общие на двоих.</p>
+          <p class="hint hint-touch">Управление пальцем: слева — джойстик, справа — удар.</p>
         </div>
       </section>
 
@@ -1716,7 +1700,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
           <button id="btn-pause" class="btn-small btn-pause" type="button" title="Пауза">Пауза</button>
           <button class="btn-sound" type="button" title="Звук">🔊</button>
           <button id="btn-full" class="btn-full" type="button" title="Во весь экран" hidden>⛶</button>
-          <button id="btn-menu" class="btn-small" type="button">В меню</button>
+          <button id="btn-menu" class="btn-small" type="button">В комнату</button>
         </span>
       </div>
     </div>
@@ -4164,6 +4148,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
       if (window.Sound) Sound.play('levelup');
       if (!Upgrades.queue.length) return;   // все под ИИ — экран не нужен
+      // Пока хозяин выбирает карточку, игра у него стоит — пусть гость знает почему
+      if (window.Online && Online.isHost()) {
+        Online.command('banner', { a: 'Награда!', b: 'напарник выбирает карточку', life: 4 });
+      }
       Game.state = 'levelup';
       showNext();
     },
@@ -4340,6 +4328,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     equipped: { omnom: 'wood', cat: 'toy' },      // что в лапке
     costumes: { omnom: [], cat: [] },             // купленные наряды (js/wardrobe.js)
     worn: { omnom: 'base', cat: 'base' },         // что надето
+    sync: { id: '', rev: 0 },                     // чьё это общее сохранение и какой он версии
     tab: 'omnom',
     openedFrom: 'menu'
   };
@@ -4350,8 +4339,17 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   Shop.load = function () {
     try {
       var raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return;
-      var d = JSON.parse(raw);
+      if (raw) Shop.fromData(JSON.parse(raw));
+    } catch (e) {
+      console.warn('[shop] сохранение не прочиталось:', e);
+    }
+    lastSaved = content();
+  };
+
+  /** Разложить сохранение по местам — из памяти браузера или от хозяина комнаты. */
+  Shop.fromData = function (d) {
+    if (!d) return;
+    {
       if (d.coins) Shop.coins = { omnom: d.coins.omnom | 0, cat: d.coins.cat | 0 };
       // Старое сохранение хранило общую пыль числом — делим её пополам
       if (typeof d.dust === 'number') {
@@ -4379,25 +4377,69 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
         omnom: d.equipped.omnom || 'wood',
         cat: d.equipped.cat || 'toy'
       };
-    } catch (e) {
-      console.warn('[shop] сохранение не прочиталось:', e);
     }
+    Shop.sync = { id: (d.sync && d.sync.id) || '', rev: (d.sync && d.sync.rev) | 0 };
   };
 
   /** Короткий звоночек покупки. */
   function ding() { if (window.Sound) Sound.play('buy'); }
 
-  Shop.save = function () {
+  /** Всё сохранение одним объектом. */
+  Shop.toData = function () {
+    return {
+      coins: Shop.coins, dust: Shop.dust, owned: Shop.owned,
+      levels: Shop.levels, perks: Shop.perks, equipped: Shop.equipped,
+      gear: Shop.gear, equipment: Shop.equipment, progress: Shop.progress,
+      home: window.Home ? Home.toSave() : null,
+      costumes: Shop.costumes, worn: Shop.worn,
+      best: Shop.best,
+      sync: Shop.sync
+    };
+  };
+
+  var lastSaved = '';      // что записали в последний раз (без номера версии)
+
+  function content() {
+    var d = Shop.toData();
+    delete d.sync;
+    return JSON.stringify(d);
+  }
+
+  function write() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        coins: Shop.coins, dust: Shop.dust, owned: Shop.owned,
-        levels: Shop.levels, perks: Shop.perks, equipped: Shop.equipped,
-        gear: Shop.gear, equipment: Shop.equipment, progress: Shop.progress,
-        home: window.Home ? Home.toSave() : null,
-        costumes: Shop.costumes, worn: Shop.worn,
-        best: Shop.best
-      }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify(Shop.toData()));
     } catch (e) { /* приватный режим — играем без сохранения */ }
+  }
+
+  /**
+   * Сохранить прогресс. Он общий на двоих: у хозяина комнаты каждое изменение
+   * получает следующий номер версии и сразу уходит напарнику (Shop.onChange,
+   * js/online.js). Гость хранит копию и номер не меняет. Если ничего не
+   * поменялось — ничего не делаем.
+   */
+  Shop.save = function () {
+    var now = content();
+    if (now === lastSaved) return;
+    lastSaved = now;
+    if (!(window.Online && Online.isGuest())) {
+      if (!Shop.sync.id) Shop.sync.id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      Shop.sync.rev++;
+    }
+    write();
+    if (Shop.onChange) Shop.onChange();
+  };
+
+  /** Записать и разослать заново, даже если ничего не поменялось. */
+  Shop.forceSave = function () {
+    lastSaved = '';
+    Shop.save();
+  };
+
+  /** Принять общее сохранение от хозяина комнаты. */
+  Shop.applyShared = function (d) {
+    Shop.fromData(d);
+    lastSaved = content();
+    write();
   };
 
   /* ------------------------------------------------------------------------
@@ -4443,8 +4485,6 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
    */
   Shop.addCoin = function (hero, n) {
     n = n || 1;
-    // В сетевой игре конфеты героя напарника уходят ему, а не в наш кошелёк
-    var away = window.Online && Online.isHost() && hero === Online.mateHero;
     var bonus = (window.Home ? Home.candyBonus() : 0) +
                 (window.Wardrobe ? Wardrobe.candyBonus(hero) : 0);
     if (bonus > 0) {
@@ -4452,12 +4492,12 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       n = Math.floor(exact);
       if (Math.random() < exact - n) n++;
     }
-    if (!away) Shop.coins[hero] = (Shop.coins[hero] || 0) + n;
+    // Сохранение общее на двоих — конфеты обоих героев лежат в нём
+    Shop.coins[hero] = (Shop.coins[hero] || 0) + n;
     return n;
   };
 
   Shop.addDust = function (hero, n) {
-    if (window.Online && Online.isHost() && hero === Online.mateHero) return;
     Shop.dust[hero] = (Shop.dust[hero] || 0) + (n || 1);
   };
 
@@ -4644,6 +4684,8 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       Game.state = 'playing';
       Game.showScreen(null);
       document.getElementById('topbar').hidden = false;
+    } else if (window.Online && Online.active) {
+      Online.open();                     // лавку открывали из комнаты
     } else {
       Game.toMenu();
     }
@@ -5239,7 +5281,8 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
     close: function () {
       Shop.save();
-      Game.toMenu();
+      if (window.Online && Online.active) Online.open();   // домой заходили из комнаты
+      else Game.toMenu();
     },
 
     toMap: function () {
@@ -5298,7 +5341,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     }
 
     var next = document.getElementById('home-next');
-    if (next) next.hidden = (Home.openedFrom === 'menu');
+    // «На карту» — только после пройденного мира и только у хозяина комнаты
+    if (next) next.hidden = (Home.openedFrom !== 'after') || !!(window.Online && Online.isGuest());
+    var exitBtn = document.getElementById('home-exit');
+    if (exitBtn) exitBtn.textContent = (window.Online && Online.active) ? 'В комнату' : 'В меню';
 
     // Вкладки разделов
     var tabs = document.getElementById('home-sections');
@@ -6256,7 +6302,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
   WorldMap.init = function () {
     var back = document.getElementById('map-back');
-    if (back) back.addEventListener('click', Game.toMenu);
+    if (back) back.addEventListener('click', function () {
+      if (window.Online && Online.active) Online.open();   // карта открыта из комнаты
+      else Game.toMenu();
+    });
 
     // С карты можно заглянуть домой — поспать и поужинать перед миром
     var home = document.getElementById('map-home');
@@ -6895,11 +6944,12 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
     // Подпись над головой (P1 / P2 / ИИ) и сердечки
     var tagY = p.y - hop - 104;
+    c.font = '900 13px Nunito, "Segoe UI", sans-serif';
+    var tagW = Math.max(40, c.measureText(p.label).width + 18);   // «Напарник» длиннее «P1»
     c.fillStyle = p.color;
-    Game.roundRect(c, p.x - 20, tagY - 11, 40, 22, 11);
+    Game.roundRect(c, p.x - tagW / 2, tagY - 11, tagW, 22, 11);
     c.fill();
     c.fillStyle = '#fff';
-    c.font = '900 13px Nunito, "Segoe UI", sans-serif';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.fillText(p.label, p.x, tagY + 1);
@@ -9659,7 +9709,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       Game.stats.candyTotal++;
       var got = Shop.addCoin(p.hero, 1) || 1;   // домик иногда добавляет лишнюю
       if (window.Sound) Sound.play('candy');
-      if (window.Online) { Online.earn(p.hero, got, 0); Online.fx('candy', d.x, d.y - 10, got); }
+      if (window.Online) Online.fx('candy', d.x, d.y - 10, got);
       Combat.floatText(d.x, d.y - 10, '+' + got, '#ffca4a');
       Combat.particles(d.x, d.y, '#ffd36e', 5, { speed: 70, star: true });
     } else if (d.kind === 'heart') {
@@ -9672,7 +9722,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       Shop.addDust(p.hero, 1);
       Shop.save();
       Game.stats.dust = (Game.stats.dust || 0) + 1;
-      if (window.Online) { Online.earn(p.hero, 0, 1); Online.fx('dust', d.x, d.y - 10); }
+      if (window.Online) Online.fx('dust', d.x, d.y - 10);
       if (window.Sound) Sound.play('dust');
       Combat.floatText(d.x, d.y - 12, '✦ +1', '#ffd24a');
       Combat.particles(d.x, d.y, '#ffdf5e', 14, { speed: 120, star: true });
@@ -10611,14 +10661,13 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 /* ============================================================================
  * js/online.js — игра вдвоём по сети, каждый со своего телефона.
  *
- * Как играем:
- *   • первый нажимает «Играть по сети» → «Создать комнату» и видит код;
- *   • второй открывает тот же сайт, вводит код (или просто переходит по
- *     присланной ссылке) и нажимает «Войти»;
- *   • как только связь есть, хозяин комнаты выбирает мир — и начинается игра.
- *
- * Кто чем управляет: в комнате можно выбрать, за кого играть — за Ам Няма или
- * за кошечку. Второму достаётся оставшийся герой.
+ * Игра только вдвоём, каждый со своего устройства:
+ *   • первый нажимает «Играть вдвоём» → «Создать комнату», выбирает героя
+ *     и отправляет второму код или ссылку;
+ *   • второй открывает ссылку (или вводит код) — ему достаётся второй герой;
+ *   • как только связь есть, хозяин комнаты выбирает мир — и начинается игра;
+ *   • если связь рвётся, игра останавливается и оба возвращаются в ту же
+ *     комнату: как только напарник подключится снова, можно продолжать.
  *
  * Как это работает внутри:
  *   Всю игру считает ОДИН телефон — тот, кто создал комнату («хозяин»).
@@ -10626,16 +10675,18 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
  *   бьёт, а обратно получает картинку мира: где герои, где слизни, конфеты,
  *   снаряды и надписи. Так оба всегда видят одно и то же и не расходятся.
  *
- *   Конфеты и пыль, собранные героем гостя, отправляются ему обратно и
- *   ложатся в его собственный кошелёк — покупки у каждого свои.
- *   Оружие, экипировка и наряды гостя тоже его: перед началом он присылает
- *   готовые характеристики своего героя, и хозяин играет именно ими.
+ *   Прогресс у двоих общий: конфеты, пыль, оружие, домик и пройденные миры —
+ *   одно сохранение на двоих. Его ведёт хозяин и после каждого изменения
+ *   отправляет гостю, а гость хранит копию в своём браузере. Покупки гостя
+ *   выполняются у хозяина. При встрече берётся более свежее сохранение, а если
+ *   вы играете вместе впервые — то, где пройдено больше.
  * ========================================================================== */
 (function () {
   'use strict';
 
   var SNAP_HZ = 20;         // сколько раз в секунду хозяин шлёт картинку мира
   var INPUT_HZ = 30;        // как часто гость шлёт своё управление
+  var SAVE_EVERY = 2;       // раз в сколько секунд хозяин сохраняет забег
 
   var Online = {
     active: false,          // идёт ли сетевая игра
@@ -10646,7 +10697,6 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     lastError: '',
 
     remoteInput: { x: 0, y: 0, a: false },   // управление напарника (у хозяина)
-    mateProfile: null,                        // характеристики героя гостя
 
     isHost: function () { return Online.active && Online.role === 'host'; },
     isGuest: function () { return Online.active && Online.role === 'guest'; },
@@ -10660,8 +10710,8 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     }
   };
 
-  var snapTimer = 0, inputTimer = 0;
-  var coinBuffer = { candy: 0, dust: 0 };    // что заработал гость с прошлой отправки
+  var snapTimer = 0, inputTimer = 0, saveTimer = 0;
+  var notice = '';                            // что сказать в комнате (связь прервалась и т.п.)
   var ghosts = {};                            // слизни у гостя (по номеру)
   var lastSnapshot = null;
 
@@ -10692,10 +10742,48 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     Online.active = false;
     Online.role = 'off';
     Online.ready = false;
-    Online.mateProfile = null;
     ghosts = {};
     render();
   };
+
+  /**
+   * Вернуться в комнату — из забега, итогов или паузы.
+   * tellMate — позвать туда и напарника.
+   */
+  Online.backToRoom = function (tellMate) {
+    if (tellMate && Net.isOpen()) Net.send({ t: 'room' });
+    if (window.Shop) Shop.save();
+    Game.endless = false;
+    Game.finalWin = false;
+    Game.defeatTimer = 0;
+    Game.mapTimer = 0;
+    Game.bannerData = null;
+    Players.list = [];
+    if (window.Touch) Touch.reset();
+    Online.open();
+  };
+
+  /**
+   * Связь с напарником пропала. Играть можно только вдвоём, поэтому забег
+   * останавливается, а комната открывается снова с тем же кодом: напарник
+   * вернётся — и можно продолжать. Прогресс к этому моменту уже сохранён.
+   */
+  function lost() {
+    if (!Online.active) return;
+    var code = Net.code;
+    var inGame = ['playing', 'paused', 'levelup', 'result', 'map'].indexOf(Game.state) >= 0;
+    Online.ready = false;
+    if (inGame) {
+      Online.backToRoom(false);
+      notice = 'Связь с напарником прервалась — игра остановлена. Ждём, пока он вернётся.';
+    }
+    setTimeout(function () {
+      if (!Online.active || !code) return;
+      if (Online.isHost()) Net.host(code);
+      else Net.join(code);
+      render();
+    }, 300);
+  }
 
   /** Хозяин меняет, за кого играет. */
   Online.pickHero = function (hero) {
@@ -10718,13 +10806,22 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       case 'hello':                     // хозяин сказал гостю, за кого тот играет
         Online.myHero = m.hero;
         Online.mateHero = other(m.hero);
-        sendProfile();
         render();
         break;
 
-      case 'prof':                      // характеристики героя гостя
-        Online.mateProfile = m.p;
-        applyProfile();
+      case 'sync':                      // гость показал своё сохранение
+        if (Online.isHost()) mergeSave(m.d);
+        break;
+
+      case 'save':                      // общее сохранение от хозяина
+        if (Online.isGuest() && m.d) {
+          Shop.applyShared(m.d);
+          refreshScreens();
+        }
+        break;
+
+      case 'act':                       // гость что-то купил, надел или съел
+        if (Online.isHost()) runAction(m);
         break;
 
       case 'i':                         // управление гостя
@@ -10749,17 +10846,26 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
         if (Online.isHost()) Upgrades.netPick(Online.matePlayer(), m.i);
         break;
 
-      case 'coins':                     // заработок героя гостя
-        if (Online.isGuest()) {
-          if (m.c) Shop.addCoin(Online.myHero, m.c);
-          if (m.d) Shop.addDust(Online.myHero, m.d);
-          Shop.save();
-        }
+      case 'pause':                     // пауза общая на двоих
+        if (window.UI) UI.pause(true);
         break;
 
-      case 'bye':
-        Game.banner('Напарник вышел', 'возвращаемся в меню', 2.5);
-        setTimeout(function () { Online.leave(); Game.toMenu(); }, 1200);
+      case 'resume':
+        if (window.UI) UI.resume(true);
+        break;
+
+      case 'room':                      // напарник вернулся в комнату — и мы туда же
+        Online.backToRoom(false);
+        break;
+
+      case 'bye':                       // напарник сам вышел из комнаты
+        if (Online.isGuest()) {
+          Online.leave();
+          notice = 'Хозяин закрыл комнату. Можно создать свою или войти в другую.';
+          Online.open();
+        } else {
+          lost();                       // хозяин ждёт нового гостя в той же комнате
+        }
         break;
     }
   }
@@ -10767,17 +10873,22 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   function onCommand(m) {
     switch (m.c) {
       case 'start':
-        Game.endless = false;
+        Game.endless = !!m.endless;
+        if (window.Endless) Endless.active = !!m.endless;
         Game.startGame('net', m.world);
         break;
-      case 'defeat':
-        if (window.UI) UI.showResult('defeat');
+      case 'result':                    // итоги забега — те же, что у хозяина
+        if (m.stats) Game.stats = m.stats;
+        Enemies.wave = m.wave | 0;
+        if (m.ws) Enemies.state = m.ws;
+        Game.endless = !!m.endless;
+        if (window.UI) UI.showResult(m.kind);
         break;
       case 'cleared':
         Game.banner('Мир пройден! ♥', 'хозяин комнаты выбирает следующий', 3);
         break;
-      case 'menu':
-        Game.toMenu();
+      case 'room':                      // забег окончен — ждём хозяина в комнате
+        Online.backToRoom(false);
         break;
       case 'banner':
         Game.banner(m.a, m.b, m.life || 2.2);
@@ -10786,53 +10897,111 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   }
 
   /* ========================================================================
-   * Характеристики героя гостя
+   * Общий прогресс на двоих
+   *
+   * Сохранение одно, и ведёт его хозяин. Каждое изменение (Shop.save) получает
+   * новый номер версии и уезжает гостю, а гость кладёт копию в память своего
+   * браузера. Покупки гостя у него на месте не выполняются: они уходят
+   * хозяину, и тот присылает обновлённое сохранение обратно.
    * ====================================================================== */
-  /** Гость считает свои итоговые числа и присылает их хозяину. */
-  function sendProfile() {
-    if (!Online.isGuest() || !Net.isOpen()) return;
-    var hero = Online.myHero;
-    var probe = {
-      hero: hero, runCards: [], magnet: 1, wand: 0, dodge: 0, crit: 0,
-      maxHp: 5, speed: 205, baseSwingRadius: 78, damageMul: 1, atkSpeed: 1,
-      knockMul: 1, noSlow: false, healFull: false
-    };
-    Upgrades.recalc(probe);
+  var synced = false;        // хозяин уже сверил сохранения с гостем
 
-    Net.send({
-      t: 'prof',
-      p: {
-        maxHp: probe.maxHp, speed: probe.speed, damageMul: probe.damageMul,
-        atkSpeed: probe.atkSpeed, knockMul: probe.knockMul, dodge: probe.dodge,
-        crit: probe.crit, magnet: probe.magnet, wand: probe.wand,
-        noSlow: !!probe.noSlow, swingRadius: probe.swingRadius,
-        costume: probe.costume, weaponId: probe.weaponId, weaponLevel: probe.weaponLevel
-      }
+  /** Насколько далеко продвинулось сохранение — нужно при первой встрече. */
+  function progressScore(d) {
+    if (!d) return -1;
+    var s = 0, k;
+    var cleared = (d.progress && d.progress.cleared) || {};
+    for (k in cleared) if (cleared[k]) s += 100000;
+    s += ((d.progress && d.progress.maxWorld) || 1) * 10000;
+    ['omnom', 'cat'].forEach(function (h) {
+      s += (d.coins && d.coins[h]) | 0;
+      s += ((d.dust && d.dust[h]) | 0) * 100;
+      s += ((d.owned && d.owned[h] && d.owned[h].length) | 0) * 300;
+      s += ((d.gear && d.gear[h] && d.gear[h].length) | 0) * 300;
+      s += ((d.costumes && d.costumes[h] && d.costumes[h].length) | 0) * 300;
+    });
+    var built = (d.home && d.home.built) || {};
+    for (k in built) if (built[k]) s += 300;
+    return s;
+  }
+
+  /** Хозяин получил сохранение гостя и решает, какое из двух станет общим. */
+  function mergeSave(theirs) {
+    var mine = Shop.toData();
+    var a = mine.sync || {};
+    var b = (theirs && theirs.sync) || {};
+    var takeTheirs;
+    if (a.id && a.id === b.id) {
+      takeTheirs = (b.rev | 0) > (a.rev | 0);                   // одна история — берём свежее
+    } else {
+      takeTheirs = progressScore(theirs) > progressScore(mine);  // впервые вместе — где больше пройдено
+    }
+    if (takeTheirs) Shop.fromData(theirs);
+    Net.note(takeTheirs ? 'общий прогресс — с устройства напарника' : 'общий прогресс — с этого устройства');
+
+    // Номер версии больше обоих: это сохранение теперь самое свежее у двоих
+    Shop.sync.id = (takeTheirs ? b.id : a.id) || Shop.sync.id;
+    Shop.sync.rev = Math.max(a.rev | 0, b.rev | 0);
+    synced = true;
+    Shop.forceSave();                // запишет и отправит гостю
+    refreshScreens();
+  }
+
+  /** Хозяин отправляет общее сохранение гостю (вызывается из Shop.save). */
+  function sendSave() {
+    if (!Online.isHost() || !synced || !Net.isOpen()) return;
+    Net.send({ t: 'save', d: Shop.toData() });
+  }
+
+  /** Открытый экран показывает свежие цифры. */
+  function shown(id) {
+    var el = document.getElementById('screen-' + id);
+    return !!(el && el.classList.contains('active'));
+  }
+
+  function refreshScreens() {
+    if (shown('shop') && Shop.render) Shop.render();
+    if (shown('home') && window.Home) Home.render();
+    if (shown('map') && window.WorldMap) WorldMap.render();
+    if (shown('net')) render();
+  }
+
+  /** Что гость может сделать с общим сохранением — выполняет это хозяин. */
+  var ACTIONS = {
+    Shop: ['buy', 'upgrade', 'equip', 'buyPerk', 'buyGear', 'wearGear', 'resetAll'],
+    Home: ['eat', 'build', 'sleep'],
+    Wardrobe: ['buy', 'wear']
+  };
+  var realActions = {};
+
+  function runAction(m) {
+    var obj = window[m.o];
+    var fn = realActions[m.o + '.' + m.f];
+    if (!obj || !fn || !ACTIONS[m.o] || ACTIONS[m.o].indexOf(m.f) < 0) return;
+    fn.apply(obj, Array.isArray(m.a) ? m.a : []);
+    refreshScreens();
+  }
+
+  /** У гостя покупки не выполняются на месте, а уходят хозяину. */
+  function wrapActions() {
+    Object.keys(ACTIONS).forEach(function (o) {
+      var obj = window[o];
+      if (!obj) return;
+      ACTIONS[o].forEach(function (f) {
+        var orig = obj[f];
+        if (typeof orig !== 'function') return;
+        realActions[o + '.' + f] = orig;
+        obj[f] = function () {
+          if (Online.isGuest()) {
+            if (!Net.isOpen()) return false;       // без хозяина общий прогресс не меняем
+            Net.send({ t: 'act', o: o, f: f, a: Array.prototype.slice.call(arguments) });
+            return true;
+          }
+          return orig.apply(obj, arguments);
+        };
+      });
     });
   }
-  Online.sendProfile = sendProfile;
-
-  /** Хозяин надевает на второго героя всё, что прислал гость. */
-  function applyProfile() {
-    if (!Online.isHost() || !Online.mateProfile || !Players.list.length) return;
-    var p = Online.matePlayer();
-    var s = Online.mateProfile;
-    p.maxHp = s.maxHp; p.hp = Math.min(p.hp || s.maxHp, s.maxHp);
-    p.speed = s.speed;
-    p.damageMul = s.damageMul;
-    p.atkSpeed = s.atkSpeed;
-    p.knockMul = s.knockMul;
-    p.dodge = s.dodge;
-    p.crit = s.crit;
-    p.magnet = s.magnet;
-    p.wand = s.wand;
-    p.noSlow = s.noSlow;
-    p.swingRadius = s.swingRadius;
-    p.costume = s.costume || 'base';
-    p.weaponId = s.weaponId;
-    p.weaponLevel = s.weaponLevel;
-  }
-  Online.applyProfile = applyProfile;
 
   /* ========================================================================
    * Хозяин: отправка картинки мира
@@ -10847,13 +11016,6 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     fxQueue.push(e);
   };
 
-  /** Конфеты и пыль героя гостя — копим и отправляем пачкой. */
-  Online.earn = function (hero, candy, dust) {
-    if (!Online.isHost() || hero !== Online.mateHero) return;
-    coinBuffer.candy += candy || 0;
-    coinBuffer.dust += dust || 0;
-  };
-
   function sendSnapshot() {
     if (!Net.isOpen()) return;
 
@@ -10861,6 +11023,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       return {
         h: p.hero,
         x: Math.round(p.x), y: Math.round(p.y),
+        vx: Math.round(p.vx || 0), vy: Math.round(p.vy || 0),
         hp: p.hp, mh: p.maxHp,
         f: p.facing,
         w: +p.walk.toFixed(2),
@@ -10873,8 +11036,12 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
         cs: p.costume || 'base',
         wp: p.weaponId, wl: p.weaponLevel || 0,
         ax: +(p.aimX || 0).toFixed(2), ay: +(p.aimY || 0).toFixed(2),
-        sw: p.swing ? {
-          t: +p.swing.t.toFixed(2), a: +p.swing.aim.toFixed(2),
+        // Прогресс взмаха (0…1) считается из оставшегося времени удара.
+        // Раньше здесь читалось несуществующее поле swing.t — игра у хозяина
+        // падала на первом же ударе и замирала у обоих.
+        sw: p.swing && p.swing.time ? {
+          t: +Math.max(0, Math.min(1, 1 - (p.attackTimer || 0) / p.swing.time)).toFixed(2),
+          a: +p.swing.aim.toFixed(2),
           f: +p.swing.from.toFixed(2), o: +p.swing.to.toFixed(2),
           r: Math.round(p.swing.radius), s: p.swing.spin ? 1 : 0
         } : null
@@ -10924,15 +11091,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       bn: Game.bannerData ? { a: Game.bannerData.title, b: Game.bannerData.sub, l: +Game.bannerData.life.toFixed(1) } : null
     };
     if (fxQueue.length) { msg.fx = fxQueue; fxQueue = []; }
+    // Кошельки — чтобы у напарника цифры внизу экрана менялись вживую
+    msg.cn = [Shop.coins.omnom, Shop.coins.cat, Shop.dust.omnom, Shop.dust.cat];
 
     Net.send(msg);
-
-    // Заработок героя гостя — отдельным коротким сообщением
-    if (coinBuffer.candy || coinBuffer.dust) {
-      Net.send({ t: 'coins', c: coinBuffer.candy, d: coinBuffer.dust });
-      coinBuffer.candy = 0;
-      coinBuffer.dust = 0;
-    }
   }
   var netSeq = 0;
 
@@ -10963,10 +11125,14 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
         Weapons.equip(p, s.wp, s.wl);
       }
       p.costume = s.cs;
+      p.vx = s.vx || 0;
+      p.vy = s.vy || 0;
+      // Рисование берёт прогресс взмаха из attackTimer / swing.time
       p.swing = s.sw ? {
-        t: s.sw.t, aim: s.sw.a, from: s.sw.f, to: s.sw.o,
+        aim: s.sw.a, from: s.sw.f, to: s.sw.o,
         radius: s.sw.r, spin: !!s.sw.s, hit: [], time: 1
       } : null;
+      p.attackTimer = s.sw ? 1 - s.sw.t : 0;
     });
 
     // Слизни
@@ -11013,6 +11179,11 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     else Game.bannerData = null;
 
     if (m.fx) m.fx.forEach(playFx);
+
+    if (m.cn) {
+      Shop.coins.omnom = m.cn[0]; Shop.coins.cat = m.cn[1];
+      Shop.dust.omnom = m.cn[2]; Shop.dust.cat = m.cn[3];
+    }
   }
 
   /** Маленькие радости: брызги и звуки — гость делает их у себя. */
@@ -11080,6 +11251,13 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       if (snapTimer <= 0 && Game.state === 'playing') {
         snapTimer = 1 / SNAP_HZ;
         sendSnapshot();
+      }
+      // Собранные конфеты сохраняем по ходу забега: если связь оборвётся,
+      // ничего не пропадёт (заодно сохранение уезжает напарнику)
+      saveTimer -= dt;
+      if (saveTimer <= 0) {
+        saveTimer = SAVE_EVERY;
+        Shop.save();
       }
       return;
     }
@@ -11153,11 +11331,14 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
     // Ещё ничего не выбрали
     if (!Online.active) {
-      title.textContent = 'Игра по сети · v' + Game.VERSION;
-      hint.textContent = 'Один создаёт комнату, второй входит по коду. Играть можно с двух телефонов.';
+      title.textContent = 'Игра вдвоём · v' + Game.VERSION;
+      hint.textContent = notice ||
+        'Один создаёт комнату и выбирает героя, второй входит по коду или по ссылке. ' +
+        'Конфеты, покупки и пройденные миры у вас общие.';
       box.innerHTML = '';
 
-      box.appendChild(bigButton('Создать комнату', 'вы будете хозяином', 'green', function () {
+      box.appendChild(bigButton('Создать комнату', 'выберете героя и позовёте напарника', 'green', function () {
+        notice = '';
         Online.createRoom();
       }));
 
@@ -11171,7 +11352,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       btn.innerHTML = '<span class="btn-title">Войти</span>';
       btn.addEventListener('click', function () {
         var v = (document.getElementById('net-code').value || '').trim().toUpperCase();
-        if (v.length >= 3) Online.joinRoom(v);
+        if (v.length >= 3) { notice = ''; Online.joinRoom(v); }
       });
       join.appendChild(btn);
       box.appendChild(join);
@@ -11227,39 +11408,70 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
       if (st === 'open') {
         hint.textContent = 'Напарник на связи! Выбирайте мир — и поехали.';
-        box.appendChild(bigButton('Выбрать мир', 'начинаем игру', 'green', function () {
+        var start = document.createElement('div');
+        start.className = 'net-row';
+        start.appendChild(bigButton('Выбрать мир', 'начинаем игру', 'green', function () {
           WorldMap.open('net');
         }));
+        start.appendChild(bigButton('♾ Бесконечная волна',
+          Shop.best.endless ? 'рекорд: ' + Shop.best.endless + ' волн' : 'сколько продержитесь?',
+          'violet', function () { Endless.start('net'); }));
+        box.appendChild(start);
       } else {
-        hint.textContent = 'Отправьте второму игроку ссылку или код. ' +
-          'Браузер можно спокойно свернуть — комната не пропадёт.';
+        hint.textContent = notice || ('Отправьте второму игроку ссылку или код. ' +
+          'Браузер можно спокойно свернуть — комната не пропадёт.');
         box.appendChild(statusLine());
       }
 
     } else {
-      title.textContent = 'Вход в комнату ' + (Net.code || '');
-      hint.textContent = st === 'open'
-        ? 'Вы в игре! Ждём, пока хозяин выберет мир.'
-        : 'Если хозяин свернул браузер — попросите его вернуться в игру, ' +
-          'мы дозвонимся сами.';
-
-      if (st !== 'open') box.appendChild(statusLine());
+      title.textContent = 'Комната ' + (Net.code || '');
 
       if (st === 'open') {
+        hint.textContent = 'Вы в комнате! Хозяин выбирает мир — а пока можно заглянуть в лавку или домой.';
         var who = document.createElement('div');
         who.className = 'net-youare';
         who.innerHTML = '<img src="' + Assets.sprites[Online.myHero + '_base'].src + '" alt="">' +
           '<span>вы играете за: <b>' + (Online.myHero === 'omnom' ? 'Ам Няма' : 'кошечку') + '</b></span>';
         box.appendChild(who);
+      } else {
+        hint.textContent = notice || ('Соединяемся с хозяином комнаты. Если он свернул браузер — ' +
+          'попросите его вернуться в игру, мы дозвонимся сами.');
+        box.appendChild(statusLine());
       }
     }
 
-    var out = document.createElement('button');
-    out.type = 'button';
-    out.className = 'btn-small';
-    out.textContent = 'Выйти из комнаты';
-    out.addEventListener('click', function () { Online.leave(); Online.open(); });
-    box.appendChild(out);
+    // Когда оба на связи: общий прогресс, лавка и домик
+    if (st === 'open') {
+      box.appendChild(sharedLine());
+      var extra = document.createElement('div');
+      extra.className = 'net-row';
+      extra.appendChild(smallButton('🗡 Лавка мечей', function () { Shop.open('room'); }));
+      extra.appendChild(smallButton('🏠 Домик', function () { if (window.Home) Home.open('room'); }));
+      box.appendChild(extra);
+    }
+
+    box.appendChild(smallButton('Выйти из комнаты', function () { Online.leave(); Online.open(); }));
+  }
+
+  /** Строчка про общий прогресс: миры и кошельки — одни на двоих. */
+  function sharedLine() {
+    var done = 0;
+    for (var k in Shop.progress.cleared) if (Shop.progress.cleared[k]) done++;
+    var d = document.createElement('div');
+    d.className = 'net-sync';
+    d.textContent = 'Общий прогресс: миров пройдено ' + done + ' из ' + Config.count +
+      ' · Ам Ням 🍬 ' + Shop.coins.omnom + ' ✦ ' + Shop.dust.omnom +
+      ' · Кошечка 🍬 ' + Shop.coins.cat + ' ✦ ' + Shop.dust.cat;
+    return d;
+  }
+
+  function smallButton(text, fn) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-small';
+    b.textContent = text;
+    b.addEventListener('click', fn);
+    return b;
   }
 
   /**
@@ -11362,7 +11574,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   function bigButton(title, sub, color, fn) {
     var b = document.createElement('button');
     b.type = 'button';
-    b.className = 'btn btn-' + (color === 'green' ? 'green' : 'pink');
+    b.className = 'btn btn-' + (color || 'pink');
     b.innerHTML = '<span class="btn-title">' + title + '</span>' +
       (sub ? '<span class="btn-sub">' + sub + '</span>' : '');
     b.addEventListener('click', fn);
@@ -11379,28 +11591,31 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
     Net.onStatus = function () { render(); };
 
+    // Общий прогресс: изменения хозяина уезжают гостю, покупки гостя — хозяину
+    Shop.onChange = sendSave;
+    wrapActions();
+
     Net.onOpen = function () {
       Online.ready = true;
+      synced = false;
+      notice = '';
       if (Online.isHost()) {
         Net.send({ t: 'hello', hero: Online.mateHero });
+      } else {
+        // Гость показывает хозяину своё сохранение — хозяин решит, какое станет общим
+        Net.send({ t: 'sync', d: Shop.toData() });
       }
       if (window.Sound) Sound.play('revive');
       render();
     };
 
-    Net.onClose = function () {
-      Online.ready = false;
-      if (Game.state === 'playing') {
-        Game.banner('Связь потерялась', 'возвращаемся в меню', 2.5);
-        setTimeout(function () { Online.leave(); Game.toMenu(); }, 1500);
-      } else {
-        render();
-      }
-    };
+    // Напарник пропал — забег встаёт, комната ждёт его с тем же кодом
+    Net.onClose = function () { lost(); };
 
     var open = document.getElementById('btn-online');
     if (open) open.addEventListener('click', function () {
       if (window.Sound) Sound.play('click');
+      if (Game.goFullscreen) Game.goFullscreen();
       Online.open();
     });
 
@@ -11450,20 +11665,21 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       return Game.state === 'playing';
     },
 
-    pause: function () {
+    /** fromMate === true — паузу поставил напарник (сообщение по сети). */
+    pause: function (fromMate) {
       if (!UI.canPause()) return;
-      if (window.Online && Online.isHost()) {
-        Online.command('banner', { a: 'Пауза', b: 'напарник отошёл на минутку', life: 3 });
-      }
+      // Вдвоём пауза общая: игра встаёт у обоих
+      if (fromMate !== true && window.Online && Online.active && Net.isOpen()) Net.send({ t: 'pause' });
       Game.state = 'paused';
-      render();
+      render(fromMate === true);
       Game.showScreen('pause');
       document.getElementById('topbar').hidden = true;
       if (window.Sound) Sound.play('click');
     },
 
-    resume: function () {
+    resume: function (fromMate) {
       if (Game.state !== 'paused') return;
+      if (fromMate !== true && window.Online && Online.active && Net.isOpen()) Net.send({ t: 'resume' });
       Game.state = 'playing';
       Game.showScreen(null);
       document.getElementById('topbar').hidden = false;
@@ -11484,6 +11700,12 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
      */
     showResult: function (kind) {
       var s = Game.stats;
+      // Итоги у напарника те же, что у хозяина: считал забег он
+      if (window.Online && Online.isHost()) {
+        Online.command('result', {
+          kind: kind, stats: s, wave: Enemies.wave, ws: Enemies.state, endless: !!Game.endless
+        });
+      }
       UI.lastRun = { mode: Game.mode, world: Game.world, endless: !!Game.endless };
 
       var titles = {
@@ -11537,6 +11759,11 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       if (again) again.hidden = !!guest;
       var netHint = document.getElementById('result-net');
       if (netHint) netHint.hidden = !guest;
+      var inRoom = !!(window.Online && Online.active);
+      var homeBtn = document.getElementById('result-home');
+      if (homeBtn) homeBtn.hidden = inRoom;          // домой — из комнаты
+      var menuBtn = document.getElementById('result-menu');
+      if (menuBtn) menuBtn.textContent = inRoom ? 'В комнату' : 'В меню';
 
       Game.state = 'result';
       Game.showScreen('result');
@@ -11628,12 +11855,19 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
-  function render() {
+  function render(fromMate) {
     var el = document.getElementById('pause-where');
     if (!el) return;
-    el.textContent = Game.endless
+    el.textContent = (Game.endless
       ? 'Бесконечная волна · волна ' + Enemies.wave
-      : 'Мир ' + Game.world + ' · ' + Config.world(Game.world).name;
+      : 'Мир ' + Game.world + ' · ' + Config.world(Game.world).name) +
+      (fromMate ? ' · паузу поставил напарник' : '');
+    // Вдвоём лавка — в комнате, а «В меню» ведёт обоих в комнату
+    var inRoom = !!(window.Online && Online.active);
+    var shopBtn = document.getElementById('pause-shop');
+    if (shopBtn) shopBtn.hidden = inRoom;
+    var menuBtn = document.getElementById('pause-menu');
+    if (menuBtn) menuBtn.textContent = inRoom ? 'В комнату' : 'В меню';
   }
 
   UI.formatTime = formatTime;
@@ -11658,7 +11892,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   'use strict';
 
   var Game = {
-    VERSION: 7,          // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 8,          // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
@@ -12138,7 +12372,6 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     if (Game.defeatTimer > 0) return;
     Game.defeatTimer = 3;
     if (window.Sound) Sound.play('lose');
-    if (window.Online && Online.isHost()) Online.command('defeat');
     Game.banner('Герои устали…', 'конфет собрано: ' + Game.stats.candyTotal, 3);
   };
 
@@ -12164,7 +12397,13 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   };
 
   Game.startGame = function (mode, worldNum) {
-    Game.mode = mode || Game.mode || 'solo';
+    // Играть можно только вдвоём: без напарника на связи забег не начинается
+    if (!(window.Online && Online.active && Net.isOpen())) {
+      if (window.Online && Online.active) Online.open();
+      else Game.toMenu();
+      return;
+    }
+    Game.mode = mode || Game.mode || 'net';
     Game.state = 'playing';
     var world = Game.applyWorld(worldNum || Game.world);
 
@@ -12175,7 +12414,9 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     Game.mapTimer = 0;
     Game.bossBonus = null;
     Game.finalWin = false;
-    if (window.Home) Home.beginRun();   // ужин и крепкий сон действуют этот забег
+    // Ужин и крепкий сон действуют этот забег. Считает их хозяин комнаты:
+    // у гостя общее сохранение только копия, её не трогаем
+    if (window.Home && !Online.isGuest()) Home.beginRun();
     Players.create(Game.mode);   // герои встают в центр арены
     Enemies.reset();        // очередь волн с начала
     Combat.reset();         // ни конфет, ни снарядов с прошлой партии
@@ -12188,8 +12429,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       Game.banner(world.name, 'Мир ' + world.num + ' · ' + world.region.name, 2.6);
     }
     if (window.Online && Online.isHost()) {
-      Online.command('start', { world: world.num });
-      Online.applyProfile();          // на напарнике — его собственное снаряжение
+      Online.command('start', { world: world.num, endless: !!Game.endless });
     }
     Game.showScreen(null);
   };
@@ -12229,9 +12469,11 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
 
   Game.toMenu = function () {
     if (window.Shop) Shop.save();
+    // Пока мы в комнате, «В меню» возвращает обоих в комнату.
+    // Совсем уйти можно кнопкой «Выйти из комнаты».
     if (window.Online && Online.active) {
-      if (Online.isHost()) Online.command('menu');
-      Online.leave();
+      Online.backToRoom(true);
+      return;
     }
     Game.endless = false;
     Game.finalWin = false;
@@ -12272,10 +12514,7 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
   function update(dt) {
     updateFloaties(dt);
 
-    if (Game.state === 'menu') {
-      if (Game.pressed.Digit1 || Game.pressed.Numpad1) WorldMap.open('solo');
-      else if (Game.pressed.Digit2 || Game.pressed.Numpad2) WorldMap.open('duo');
-    } else if (Game.state === 'levelup') {
+    if (Game.state === 'levelup') {
       Upgrades.handleKeys();          // выбор карточки клавишами 1/2/3
     } else if (Game.state === 'paused') {
       if (Game.pressed.Escape || Game.pressed.KeyP) UI.resume();
@@ -12309,7 +12548,9 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
       }
 
       // В передышке между волнами можно заглянуть в лавку
-      var canShop = (Enemies.state === 'pause' || Enemies.state === 'done');
+      // Вдвоём лавка открывается из комнаты, а не посреди забега
+      var canShop = !(window.Online && Online.active) &&
+        (Enemies.state === 'pause' || Enemies.state === 'done');
       var shopBtn = document.getElementById('btn-shop-game');
       if (shopBtn.hidden === canShop) shopBtn.hidden = !canShop;
 
@@ -12318,8 +12559,10 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
         Game.mapTimer -= dt;
         if (Game.mapTimer <= 0) {
           if (window.Online && Online.active) {
-            if (Online.isHost()) WorldMap.open('net');
-            else { Game.state = 'net'; Online.open(); }
+            // Сюда доходит только хозяин: он выбирает следующий мир,
+            // а гость возвращается в комнату и ждёт
+            if (Game.finalWin && window.UI) UI.showResult('final');
+            else { Online.command('room'); WorldMap.open('net'); }
           } else if (Game.finalWin && window.UI) {
             UI.showResult('final');          // прошли всю игру — показываем итоги
           } else if (window.Home) {
@@ -12545,29 +12788,13 @@ body.touch .btn-small { padding: 0.9cqw 2cqw; font-size: 1.6cqw; }
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
 
-    // На телефоне при старте партии сразу разворачиваем игру на весь экран
-    function start(mode) {
-      return function () {
-        if (Touch.active && document.documentElement.requestFullscreen && !document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(function () {});
-        }
-        WorldMap.open(mode);          // сначала выбираем мир
-      };
-    }
-    document.getElementById('btn-solo').addEventListener('click', start('solo'));
-
-    // Бесконечная волна: спрашиваем режим и запускаем сразу
-    var endlessBtn = document.getElementById('btn-endless');
-    if (endlessBtn) {
-      endlessBtn.addEventListener('click', function () {
-        if (Touch.active && document.documentElement.requestFullscreen && !document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(function () {});
-        }
-        Endless.start(Game.mode || 'solo');
-      });
-    }
-    document.getElementById('btn-duo').addEventListener('click', start('duo'));
-    document.getElementById('btn-menu').addEventListener('click', Game.toMenu);
+    // На телефоне игра разворачивается на весь экран, как только зовём напарника
+    Game.goFullscreen = function () {
+      if (Touch.active && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function () {});
+      }
+    };
+    document.getElementById('btn-menu').addEventListener('click', function () { Game.toMenu(); });
 
     // Кнопка «во весь экран» — только на телефоне и только если браузер умеет
     var full = document.getElementById('btn-full');
