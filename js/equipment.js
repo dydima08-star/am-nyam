@@ -10,7 +10,8 @@
  *
  * Прокачка: купленную вещь можно улучшить до +5 за конфеты (дорогие уровни —
  * и за пыль). Каждый уровень делает все её полезные характеристики на 15%
- * сильнее; штрафы (например, медленный бег в панцире) не растут.
+ * сильнее; штрафы (например, медленный бег в панцире) не растут. Вещи, которые
+ * дают только сердечки, вдобавок получают +1% уклонения за уровень.
  *
  * Характеристики вещи (stats):
  *   hp       — сколько добавить сердечек
@@ -527,6 +528,7 @@
 
   var MAX_LEVEL = 5;
   var LEVEL_BOOST = 0.15;          // +15% к характеристикам за уровень
+  var HP_ONLY_DODGE = 0.01;        // +1% уклонения за уровень вещам «только сердечки»
 
   var Equipment = {
     slots: SLOTS,
@@ -536,13 +538,17 @@
     /** Характеристики вещи с учётом прокачки. */
     stats: function (it, level) {
       var k = 1 + LEVEL_BOOST * (level || 0);
-      var out = {};
+      var out = {}, onlyHp = true;
       for (var key in it.stats) {
         var v = it.stats[key];
+        if (key !== 'hp' && v > 0) onlyHp = false;
         if (v <= 0) out[key] = v;                       // штраф не растёт
         else if (key === 'hp') out[key] = Math.round(v * k);
         else out[key] = v * k;
       }
+      // Сердечки округляются и растут не каждый уровень — такие вещи
+      // за каждый уровень получают ещё немного уклонения
+      if (onlyHp && level) out.dodge = HP_ONLY_DODGE * level;
       return out;
     },
 
@@ -582,6 +588,27 @@
       if (s.damage) out.push('урон +' + Math.round(s.damage * 100) + '%');
       if (s.crit) out.push('крит ' + Math.round(s.crit * 100) + '%');
       if (s.magnet) out.push('магнит +' + Math.round(s.magnet * 100) + '%');
+      return out;
+    },
+
+    /**
+     * Что даст следующий уровень: строки «уклонение 5% → 5.8%» — только
+     * для характеристик, которые на самом деле изменятся.
+     */
+    gainLines: function (it, level) {
+      var a = Equipment.stats(it, level), b = Equipment.stats(it, level + 1), out = [];
+      function pct(v) { return (v > 0 ? '+' : '') + Math.round(v * 1000) / 10 + '%'; }
+      function line(key, label, fmt) {
+        var from = a[key] || 0, to = b[key] || 0;
+        if (to && fmt(from) !== fmt(to)) out.push(label + ' ' + fmt(from) + ' → ' + fmt(to));
+      }
+      line('hp', '♥', function (v) { return '+' + v; });
+      line('dodge', 'уклонение', pct);
+      line('speed', 'бег', pct);
+      line('atkSpeed', 'удары', pct);
+      line('damage', 'урон', pct);
+      line('crit', 'крит', pct);
+      line('magnet', 'магнит', pct);
       return out;
     },
 

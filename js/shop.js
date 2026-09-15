@@ -560,6 +560,14 @@
         up.disabled = true;
         up.classList.add('is-max');
       } else {
+        var next = Weapons.stats(w, level + 1);
+        card.appendChild(gainBox(level + 1, [
+          ['урон', st.damage, next.damage],
+          ['скор.', st.speed, next.speed],
+          ['размах', st.reach, next.reach]
+        ].map(function (r) {
+          return r[0] + ' ×' + mul(r[1]) + ' → ×' + mul(r[2]);
+        })));
         var cost = Weapons.upgradeCost(w, level);
         up.innerHTML = '+' + (level + 1) + ' · <b>🍬 ' + cost + '</b>';
         if (Shop.coins[hero] >= cost) {
@@ -748,6 +756,7 @@
             up.disabled = true;
             up.classList.add('is-max');
           } else {
+            card.appendChild(gainBox(level + 1, Equipment.gainLines(it, level)));
             var cost = Equipment.upgradeCost(it, level);
             up.innerHTML = '+' + (level + 1) + ' · <b>🍬 ' + cost + '</b>';
             if (Shop.coins[hero] >= cost) {
@@ -779,10 +788,24 @@
     });
   }
 
+  /** Множитель коротко: 2.70 → «2.7», 1.00 → «1». */
+  function mul(value) {
+    return value.toFixed(2).replace(/0$/, '').replace(/\.$/, '');
+  }
+
   function statChip(label, value) {
     var cls = value > 1.001 ? 'up' : (value < 0.999 ? 'down' : '');
-    var txt = value.toFixed(2).replace(/0$/, '').replace(/\.$/, '');
-    return '<i class="chip ' + cls + '">' + label + ' ×' + txt + '</i>';
+    return '<i class="chip ' + cls + '">' + label + ' ×' + mul(value) + '</i>';
+  }
+
+  /** Табличка над кнопкой прокачки: что именно улучшится и на сколько. */
+  function gainBox(nextLevel, lines) {
+    var box = document.createElement('div');
+    box.className = 'shop-gain';
+    box.innerHTML = '<b>на +' + nextLevel + ':</b> ' + (lines.length
+      ? lines.map(function (t) { return '<span>' + t + '</span>'; }).join('')
+      : '<span class="is-none">на этом уровне без изменений</span>');
+    return box;
   }
 
   /* ------------------------------------------------------------------------

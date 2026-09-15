@@ -621,6 +621,18 @@ body.touch .map-regions { touch-action: pan-y; }
   cursor: pointer;
 }
 .shop-up:hover:not(:disabled) { filter: brightness(1.05); }
+
+/* Что даст следующий уровень прокачки */
+.shop-gain {
+  margin-top: 0.45cqw;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 0.2cqw 0.3cqw;
+  font-size: 0.82cqw; font-weight: 800;
+  color: var(--green-dark);
+}
+.shop-gain b { color: #a08e92; }
+.shop-gain span { background: #e6f7d6; border-radius: 1cqw; padding: 0.05cqw 0.45cqw; white-space: nowrap; }
+.shop-gain span.is-none { background: #f1e7e9; color: #a08e92; }
 .shop-up.is-poor, .shop-up:disabled { background: #f1e7e9; box-shadow: 0 0.25cqw 0 #ddd0d3; color: #a08e92; cursor: default; }
 .shop-up.is-max { background: #e6f7d6; box-shadow: 0 0.25cqw 0 #b9dd97; color: var(--green-dark); }
 
@@ -828,6 +840,7 @@ body.touch .map-regions { touch-action: pan-y; }
 @container (max-width: 720px) {
   .shop-items { grid-template-columns: repeat(4, 1fr); gap: 1cqw; }
   .shop-up { font-size: 1.5cqw; padding: 0.7cqw 0.4cqw; }
+  .shop-gain { font-size: 1.3cqw; }
   .btn-reset { font-size: 1.7cqw; padding: 0.7cqw 1.6cqw; }
   .confirm-box { width: 82%; }
   .confirm-title { font-size: 3.4cqw; }
@@ -856,6 +869,7 @@ body.touch .map-regions { touch-action: pan-y; }
   .gear-pic { height: 6.5cqw; }
   .shop-name { font-size: 1.7cqw; }
   .chip { font-size: 1.15cqw; padding: 0.15cqw 0.6cqw; }
+  .shop-gain { font-size: 1.1cqw; }
   .shop-buy { font-size: 1.5cqw; padding: 0.6cqw 0.3cqw 0.7cqw; }
   .shop-dust-pay { font-size: 1.3cqw; }
   .shop-top h2 { font-size: 3.4cqw; }
