@@ -1,5 +1,5 @@
 /* ============================================================================
- * js/weapons.js — оружие героев: по 24 штуки каждому.
+ * js/weapons.js — оружие героев: по 27 штук каждому.
  *
  * Всё оружие нарисовано прямо кодом (никаких картинок): одна и та же функция
  * рисует его и на карточке в магазине, и в лапке у героя, и вдоль дуги взмаха.
@@ -302,7 +302,7 @@
         grip(c, '#2f5d8a', '#1b3a58', '#aee4ff');
       } },
 
-    { id: 'omnom', name: 'Меч Ам Няма', desc: 'Легенда лавки. Сильнее не бывает', secret: true,
+    { id: 'omnom', name: 'Меч Ам Няма', desc: 'Легенда лавки. Сильный, как сам Ам Ням', secret: true,
       dust: 14, damage: 4.6, speed: 1.2, reach: 1.4, knock: 1.6, trail: '#d8ffb0',
       draw: function (c) {
         var g = c.createLinearGradient(4, -10, 62, 10);
@@ -418,6 +418,63 @@
         shine(c, 60);
         grip(c, '#c9860d', '#8a5a08', '#ffe7a0');
         c.fillStyle = '#fff3c0'; star(c, 5, 0, 6, 8, 0.5); c.fill();
+      } },
+
+    /* --- самые-самые: чуть сильнее прежних лучших --- */
+    { id: 'candysword', name: 'Леденцовый палаш', desc: 'Лучшее, что можно купить за конфеты',
+      price: 680, damage: 3.7, speed: 1.15, reach: 1.3, trail: '#ffd0e0',
+      draw: function (c) {
+        blade(c, 58, 8.5, '#ffffff', '#c23a66');
+        c.save();
+        c.beginPath();
+        c.moveTo(5, -8.5); c.lineTo(58 * 0.72, -7.2); c.lineTo(58, 0);
+        c.lineTo(58 * 0.72, 7.2); c.lineTo(5, 8.5); c.closePath(); c.clip();
+        c.strokeStyle = '#ff5f8f'; c.lineWidth = 4;
+        for (var i = 0; i < 8; i++) {
+          c.beginPath(); c.moveTo(2 + i * 8, 10); c.lineTo(10 + i * 8, -10); c.stroke();
+        }
+        c.restore();
+        shine(c, 58);
+        grip(c, '#7a2a48', '#4a1428', '#ffd0e0');
+      } },
+
+    { id: 'starfall', name: 'Клинок звездопада', desc: 'С неба сыплются звёзды прямо на слизней', secret: true,
+      dust: 16, damage: 4.8, speed: 1.25, reach: 1.4, knock: 1.6, trail: '#e6d4ff',
+      draw: function (c) {
+        c.save();
+        c.globalAlpha = 0.35; c.strokeStyle = '#a88bff'; c.lineWidth = 15; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(10, 0); c.lineTo(58, 0); c.stroke();
+        c.restore();
+        var g = c.createLinearGradient(4, -9, 62, 9);
+        g.addColorStop(0, '#2e2466'); g.addColorStop(0.55, '#6a55c9'); g.addColorStop(1, '#e6d4ff');
+        blade(c, 62, 9, g, '#1f1850');
+        c.fillStyle = '#fff6b0';
+        star(c, 20, -2, 3.2); c.fill();
+        star(c, 34, 2, 4); c.fill();
+        star(c, 48, -1, 3); c.fill();
+        grip(c, '#42338a', '#241a55', '#fff6b0');
+      } },
+
+    { id: 'candyking', name: 'Меч Короля Сладостей', desc: 'Новая легенда лавки. Сильнее не бывает', secret: true,
+      dust: 18, damage: 5, speed: 1.25, reach: 1.45, knock: 1.7, trail: '#fff0b8',
+      draw: function (c) {
+        c.save();
+        c.globalAlpha = 0.3; c.fillStyle = '#ffd96b';
+        c.beginPath(); c.ellipse(34, 0, 34, 15, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+        var g = c.createLinearGradient(4, 0, 64, 0);
+        g.addColorStop(0, '#ffc93c'); g.addColorStop(0.4, '#fff3c0');
+        g.addColorStop(0.7, '#ff8fb4'); g.addColorStop(1, '#ffffff');
+        blade(c, 64, 9.5, g, '#b87a0d');
+        shine(c, 64);
+        c.fillStyle = '#ff5f8f'; c.strokeStyle = '#c23a66'; c.lineWidth = 1.4;
+        c.beginPath(); c.arc(30, 0, 3.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        grip(c, '#b87a0d', '#7a5008', '#ffd96b');
+        c.fillStyle = '#ffd96b'; c.strokeStyle = '#b87a0d'; c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(-12, -8); c.lineTo(-9, -3); c.lineTo(-6, -9); c.lineTo(-3, -3);
+        c.lineTo(0, -8); c.lineTo(0, 0); c.lineTo(-12, 0); c.closePath();
+        c.fill(); c.stroke();
       } }
   ];
 
@@ -534,7 +591,7 @@
         grip(c, '#8b7fc7', '#5d5391', null);
       } },
 
-    { id: 'staff', name: 'Звёздный жезл', desc: 'Лучшее, что можно купить за конфеты',
+    { id: 'staff', name: 'Звёздный жезл', desc: 'Сияет ярче всех звёзд',
       price: 550, damage: 3.4, speed: 1.15, reach: 1.3, trail: '#fff0b8',
       draw: function (c) {
         stick(c, 32, '#8c5a2b', 6);
@@ -778,6 +835,59 @@
         c.fillStyle = '#8fd6ff';
         c.beginPath(); c.arc(39, 3, 2, 0, Math.PI * 2); c.fill();
         c.beginPath(); c.arc(53, 3, 2, 0, Math.PI * 2); c.fill();
+      } },
+
+    /* --- самые-самые: чуть сильнее прежних лучших --- */
+    { id: 'trident', name: 'Жемчужный трезубец', desc: 'Лучшее, что можно купить за конфеты',
+      price: 680, damage: 3.6, speed: 1.2, reach: 1.35, trail: '#d9f3ff',
+      draw: function (c) {
+        stick(c, 36, '#7fc4e0', 5);
+        c.strokeStyle = '#4b8fb3'; c.lineWidth = 4; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(36, -11); c.lineTo(36, 11); c.stroke();
+        for (var i = -1; i <= 1; i++) {
+          c.beginPath(); c.moveTo(36, i * 10); c.lineTo(56, i * 10); c.stroke();
+        }
+        c.fillStyle = '#eaf9ff'; c.strokeStyle = '#4b8fb3'; c.lineWidth = 1.6;
+        for (i = -1; i <= 1; i++) {
+          c.beginPath(); c.moveTo(56, i * 10 - 3); c.lineTo(62, i * 10); c.lineTo(56, i * 10 + 3);
+          c.closePath(); c.fill(); c.stroke();
+        }
+        c.fillStyle = '#fff0fa'; c.strokeStyle = '#d98eae';
+        c.beginPath(); c.arc(30, 0, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
+      } },
+
+    { id: 'paw', name: 'Звёздная лапка', desc: 'Мягкие подушечки, железный удар', secret: true,
+      dust: 16, damage: 4.6, speed: 1.3, reach: 1.4, knock: 1.5, trail: '#ffd7f0',
+      draw: function (c) {
+        stick(c, 32, '#c9a6ff', 6);
+        c.fillStyle = '#ffe6ef'; c.strokeStyle = '#d45d8e'; c.lineWidth = 2.2;
+        c.beginPath(); c.ellipse(46, 0, 11, 12, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.fillStyle = '#ff8fb4';
+        c.beginPath(); c.ellipse(44, 0, 5, 6, 0, 0, Math.PI * 2); c.fill();
+        [[53, -9], [57, -3], [57, 3], [53, 9]].forEach(function (p) {
+          c.beginPath(); c.arc(p[0], p[1], 2.6, 0, Math.PI * 2); c.fill();
+        });
+        c.fillStyle = '#fff6b0'; star(c, 22, 0, 4); c.fill();
+      } },
+
+    { id: 'galaxy', name: 'Галактический жезл', desc: 'Новая легенда лавки. Целая галактика в лапке', secret: true,
+      dust: 18, damage: 4.8, speed: 1.3, reach: 1.45, knock: 1.4, trail: '#e0ccff',
+      draw: function (c) {
+        stick(c, 34, '#42338a', 6);
+        c.save();
+        c.globalAlpha = 0.4; c.fillStyle = '#c9a6ff';
+        c.beginPath(); c.arc(46, 0, 20, 0, Math.PI * 2); c.fill();
+        c.restore();
+        var g = c.createRadialGradient(46, 0, 1, 46, 0, 14);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, '#ff8fd0');
+        g.addColorStop(0.7, '#6a55c9'); g.addColorStop(1, '#241a55');
+        c.fillStyle = g; c.strokeStyle = '#241a55'; c.lineWidth = 2.2;
+        c.beginPath(); c.arc(46, 0, 14, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.strokeStyle = '#ffd96b'; c.lineWidth = 1.8;
+        c.beginPath(); c.ellipse(46, 0, 20, 5, -0.4, 0, Math.PI * 2); c.stroke();
+        c.fillStyle = '#ffffff';
+        star(c, 41, -5, 2.4, 4, 0.3); c.fill();
+        star(c, 51, 5, 2, 4, 0.3); c.fill();
       } }
   ];
 
