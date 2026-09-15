@@ -27,6 +27,7 @@
     perks: { omnom: {}, cat: {} },                // постоянные улучшения: id → уровень
     gear: { omnom: [], cat: [] },                 // купленная экипировка
     equipment: { omnom: {}, cat: {} },            // надетое: слот → id вещи
+    gearLevels: { omnom: {}, cat: {} },           // прокачка экипировки: id → уровень
     section: 'weapons',                           // какая вкладка открыта
     progress: { maxWorld: 1, cleared: {} },       // какие миры открыты и пройдены
     best: { endless: 0, worlds: 0 },              // рекорды: волн без остановки, миров подряд
@@ -70,6 +71,7 @@
       if (d.perks) Shop.perks = { omnom: d.perks.omnom || {}, cat: d.perks.cat || {} };
       if (d.gear) Shop.gear = { omnom: d.gear.omnom || [], cat: d.gear.cat || [] };
       if (d.equipment) Shop.equipment = { omnom: d.equipment.omnom || {}, cat: d.equipment.cat || {} };
+      if (d.gearLevels) Shop.gearLevels = { omnom: d.gearLevels.omnom || {}, cat: d.gearLevels.cat || {} };
       if (d.best) Shop.best = { endless: d.best.endless | 0, worlds: d.best.worlds | 0 };
       if (d.progress) Shop.progress = {
         maxWorld: d.progress.maxWorld || 1,
@@ -94,7 +96,8 @@
     return {
       coins: Shop.coins, dust: Shop.dust, owned: Shop.owned,
       levels: Shop.levels, perks: Shop.perks, equipped: Shop.equipped,
-      gear: Shop.gear, equipment: Shop.equipment, progress: Shop.progress,
+      gear: Shop.gear, equipment: Shop.equipment, gearLevels: Shop.gearLevels,
+      progress: Shop.progress,
       home: window.Home ? Home.toSave() : null,
       costumes: Shop.costumes, worn: Shop.worn,
       best: Shop.best,
@@ -302,7 +305,7 @@
   }
 
   /* ------------------------------------------------------------------------
-   * Экипировка
+   * Экипировка (покупка, прокачка до +5, надевание)
    * ---------------------------------------------------------------------- */
   Shop.hasGear = function (hero, id) {
     return Shop.gear[hero].indexOf(id) >= 0;
@@ -321,6 +324,28 @@
 
     Shop.gear[hero].push(id);
     Shop.wearGear(hero, id);
+    Shop.save();
+    ding();
+    return true;
+  };
+
+  Shop.gearLevel = function (hero, id) {
+    return (Shop.gearLevels[hero] && Shop.gearLevels[hero][id]) || 0;
+  };
+
+  /** Прокачать вещь на уровень (за конфеты или пыль того же героя). */
+  Shop.upgradeGear = function (hero, id, mode) {
+    var it = Equipment.get(hero, id);
+    if (!it || !Shop.hasGear(hero, id)) return false;
+    var level = Shop.gearLevel(hero, id);
+    if (level >= Equipment.MAX_LEVEL) return false;
+
+    if (!Shop.pay(hero, Equipment.upgradeCost(it, level), mode)) return false;
+    Shop.gearLevels[hero][id] = level + 1;
+
+    for (var i = 0; i < Players.list.length; i++) {
+      if (Players.list[i].hero === hero) Upgrades.recalc(Players.list[i]);
+    }
     Shop.save();
     ding();
     return true;
@@ -355,6 +380,7 @@
     Shop.perks = { omnom: {}, cat: {} };
     Shop.gear = { omnom: [], cat: [] };
     Shop.equipment = { omnom: {}, cat: {} };
+    Shop.gearLevels = { omnom: {}, cat: {} };
     Shop.progress = { maxWorld: 1, cleared: {} };
     Shop.equipped = { omnom: 'wood', cat: 'toy' };
     Shop.costumes = { omnom: [], cat: [] };
@@ -662,6 +688,7 @@
       Equipment.bySlot(hero, slot.id).forEach(function (it) {
         var owned = Shop.hasGear(hero, it.id);
         var on = Shop.equipment[hero][slot.id] === it.id;
+        var level = Shop.gearLevel(hero, it.id);
 
         var card = document.createElement('div');
         card.className = 'gear-card' + (it.dust ? ' is-secret' : '') + (on ? ' is-equipped' : '');
@@ -671,12 +698,13 @@
         cv.width = 180; cv.height = 130;
         card.appendChild(cv);
 
-        var lines = Equipment.statLines(it).map(function (t) {
+        var lines = Equipment.statLines(it, level).map(function (t) {
           return '<i class="chip up">' + t + '</i>';
         }).join('');
         var info = document.createElement('div');
         info.className = 'shop-info';
-        info.innerHTML = '<b class="shop-name">' + it.name + '</b>' +
+        info.innerHTML = '<b class="shop-name">' + it.name +
+            (level ? ' <i class="lvl">+' + level + '</i>' : '') + '</b>' +
           '<span class="shop-desc">' + it.desc + '</span>' +
           '<span class="shop-stats">' + lines + '</span>';
         card.appendChild(info);
@@ -708,6 +736,36 @@
           addDustButton(card, hero, it.price, function () {
             if (Shop.buyGear(hero, it.id, 'dust')) render();
           });
+        }
+
+        // Прокачка — только для купленных вещей
+        if (owned) {
+          var up = document.createElement('button');
+          up.type = 'button';
+          up.className = 'shop-up';
+          if (level >= Equipment.MAX_LEVEL) {
+            up.textContent = 'максимум +' + Equipment.MAX_LEVEL;
+            up.disabled = true;
+            up.classList.add('is-max');
+          } else {
+            var cost = Equipment.upgradeCost(it, level);
+            up.innerHTML = '+' + (level + 1) + ' · <b>🍬 ' + cost + '</b>';
+            if (Shop.coins[hero] >= cost) {
+              up.addEventListener('click', function () {
+                if (Shop.upgradeGear(hero, it.id, 'candy')) render();
+              });
+            } else {
+              up.disabled = true;
+              up.classList.add('is-poor');
+            }
+          }
+          card.appendChild(up);
+
+          if (level < Equipment.MAX_LEVEL) {
+            addDustButton(card, hero, Equipment.upgradeCost(it, level), function () {
+              if (Shop.upgradeGear(hero, it.id, 'dust')) render();
+            });
+          }
         }
 
         row.appendChild(card);

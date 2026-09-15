@@ -521,7 +521,7 @@
 
   /** Что гость может сделать с общим сохранением — выполняет это хозяин. */
   var ACTIONS = {
-    Shop: ['buy', 'upgrade', 'equip', 'buyPerk', 'buyGear', 'wearGear', 'resetAll'],
+    Shop: ['buy', 'upgrade', 'equip', 'buyPerk', 'buyGear', 'upgradeGear', 'wearGear', 'resetAll'],
     Home: ['eat', 'build', 'sleep'],
     Wardrobe: ['buy', 'wear']
   };

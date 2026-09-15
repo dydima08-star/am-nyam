@@ -740,6 +740,7 @@ body.touch .map-regions { touch-action: pan-y; }
 .gear-card .shop-name { font-size: 1.15cqw; line-height: 1.12; }
 .gear-card .shop-desc { font-size: 0.9cqw; max-height: 2.2cqw; }
 .gear-card .shop-buy { font-size: 1.02cqw; }
+.gear-card .shop-up { font-size: 0.95cqw; }
 
 /* Вторая цена — в звёздной пыли */
 .shop-dust-pay {
@@ -841,6 +842,7 @@ body.touch .map-regions { touch-action: pan-y; }
   .gear-card .shop-name { font-size: 1.5cqw; }
   .gear-card .shop-desc { display: none; }
   .gear-card .shop-buy { font-size: 1.5cqw; }
+  .gear-card .shop-up { font-size: 1.4cqw; }
   .shop-dust-pay { font-size: 1.5cqw; padding: 0.5cqw 0.4cqw 0.6cqw; }
   .perk-name { font-size: 1.7cqw; }
   .perk-desc { font-size: 1.3cqw; }

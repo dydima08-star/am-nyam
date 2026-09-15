@@ -8,6 +8,10 @@
  * Всё нарисовано кодом, как и оружие: одна функция рисует значок и на
  * карточке в лавке, и где угодно ещё.
  *
+ * Прокачка: купленную вещь можно улучшить до +5 за конфеты (дорогие уровни —
+ * и за пыль). Каждый уровень делает все её полезные характеристики на 15%
+ * сильнее; штрафы (например, медленный бег в панцире) не растут.
+ *
  * Характеристики вещи (stats):
  *   hp       — сколько добавить сердечек
  *   dodge    — шанс увернуться от удара (0.05 = 5%)
@@ -521,9 +525,36 @@
       { damage: 0.30, atkSpeed: 0.18, crit: 0.18 }, drawCrystalGlove, { a: '#f0e6ff', b: '#6a55c9', c: '#b8f0ff' }, 22)
   ];
 
+  var MAX_LEVEL = 5;
+  var LEVEL_BOOST = 0.15;          // +15% к характеристикам за уровень
+
   var Equipment = {
     slots: SLOTS,
     lists: { omnom: OMNOM, cat: CAT },
+    MAX_LEVEL: MAX_LEVEL,
+
+    /** Характеристики вещи с учётом прокачки. */
+    stats: function (it, level) {
+      var k = 1 + LEVEL_BOOST * (level || 0);
+      var out = {};
+      for (var key in it.stats) {
+        var v = it.stats[key];
+        if (v <= 0) out[key] = v;                       // штраф не растёт
+        else if (key === 'hp') out[key] = Math.round(v * k);
+        else out[key] = v * k;
+      }
+      return out;
+    },
+
+    /**
+     * Сколько стоит следующий уровень (в конфетах) — как у оружия:
+     * секретные вещи качать дороже, сундук дома делает дешевле.
+     */
+    upgradeCost: function (it, level) {
+      var base = it.dust ? (it.dust * 45) : Math.max(15, Math.round(it.price * 0.3));
+      var off = window.Home ? Home.upgradeDiscount() : 1;
+      return Math.round(base * (level + 1) * off);
+    },
 
     get: function (hero, id) {
       var list = Equipment.lists[hero] || OMNOM;
@@ -542,8 +573,8 @@
     },
 
     /** Короткое описание характеристик для карточки. */
-    statLines: function (it) {
-      var s = it.stats, out = [];
+    statLines: function (it, level) {
+      var s = Equipment.stats(it, level), out = [];
       if (s.hp) out.push('+' + s.hp + ' ♥');
       if (s.dodge) out.push('уклонение +' + Math.round(s.dodge * 100) + '%');
       if (s.speed) out.push('бег ' + (s.speed > 0 ? '+' : '') + Math.round(s.speed * 100) + '%');
@@ -562,7 +593,7 @@
         if (!id) continue;
         var it = Equipment.get(p.hero, id);
         if (!it) continue;
-        var s = it.stats;
+        var s = Equipment.stats(it, Shop.gearLevel(p.hero, id));
         if (s.hp) p.maxHp += s.hp;
         if (s.dodge) p.dodge += s.dodge;
         if (s.speed) p.speed *= 1 + s.speed;
