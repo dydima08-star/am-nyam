@@ -252,24 +252,19 @@
       }
     },
 
-    floatText: function (x, y, text, color) {
-      textsList.push({ x: x, y: y, text: text, color: color, life: 0.9 });
-    },
+    /* ======================================================================
+     * Попадания мечом — общее для хозяина и гостя
+     * ==================================================================== */
 
-    shake: function (amount) {
-      Game.shakeAmount = Math.min(14, (Game.shakeAmount || 0) + amount);
-    }
-  };
-
-  /* ------------------------------------------------------------------------
-   * Попадания мечом: для каждого героя во время взмаха проверяем,
-   * кто попал в сектор дуги и ещё не был задет этим же взмахом.
-   * ---------------------------------------------------------------------- */
-  function swordHits() {
-    for (var i = 0; i < Players.list.length; i++) {
-      var p = Players.list[i];
+    /**
+     * Кого задело лезвие героя к этому кадру (каждого — один раз за взмах).
+     * Хозяин считает так свои удары, а гость — свои: он сам решает, по кому
+     * попал, и сразу показывает удар, не дожидаясь ответа хозяина.
+     */
+    sweepTargets: function (p) {
+      var out = [];
       var s = p.swing;
-      if (!s || p.downed) continue;
+      if (!s || p.downed) return out;
 
       var t = 1 - p.attackTimer / s.time;
       var angle = Players.swingAngleOf(p, t);
@@ -288,21 +283,70 @@
         if (!inSweep(s.from, angle, Math.atan2(dy, dx), half)) continue;
 
         s.hit.push(e);
-        var dmg = s.damage * (p.damageMul || 1);
+        out.push(e);
+      }
+      return out;
+    },
 
-        // Перчатки чемпиона: иногда удар выходит вдвое сильнее
-        var crit = p.crit > 0 && Math.random() < p.crit;
-        if (crit) dmg *= 2;
-        dmg = Math.round(dmg * 10) / 10;
+    /** Сила удара: урон взмаха с множителем оружия, а перчатки чемпиона иногда дают крит. */
+    rollHit: function (p, damage) {
+      var dmg = damage * (p.damageMul || 1);
+      var crit = p.crit > 0 && Math.random() < p.crit;
+      if (crit) dmg *= 2;
+      return { dmg: Math.round(dmg * 10) / 10, crit: crit };
+    },
 
-        Enemies.hurt(e, dmg, p.x, p.y, s.knockback * (crit ? 1.4 : 1));
-        if (window.Sound) Sound.play(crit ? 'crit' : 'hit', p.comboIndex);
-        if (window.Online) Online.fx('hit', e.x, e.y - e.r * 0.8);
-        Combat.floatText(e.x + (Math.random() * 16 - 8), e.y - e.r * 1.8,
-          (crit ? 'КРИТ ' : '') + '-' + dmg, crit ? '#ffd24a' : '#fff2a8');
-        Combat.particles(e.x, e.y - e.r * 0.8, crit ? '#ffdf5e' : '#ffffff',
-          crit ? 10 : 4, { speed: 130, star: true });
-        Combat.shake(s.spin ? 4 : (crit ? 5 : 2));
+    /** Надпись урона над слизнем. */
+    hitText: function (dmg, crit) {
+      return (crit ? 'КРИТ ' : '') + '-' + dmg;
+    },
+
+    /** Отклик на попадание: звук, цифра урона, искры, тряска. */
+    hitFeedback: function (p, e, dmg, crit, spin) {
+      if (window.Sound) Sound.play(crit ? 'crit' : 'hit', p.comboIndex);
+      Combat.floatText(e.x + (Math.random() * 16 - 8), e.y - e.r * 1.8,
+        Combat.hitText(dmg, crit), crit ? '#ffd24a' : '#fff2a8');
+      Combat.particles(e.x, e.y - e.r * 0.8, crit ? '#ffdf5e' : '#ffffff',
+        crit ? 10 : 4, { speed: 130, star: true });
+      Combat.shake(spin ? 4 : (crit ? 5 : 2));
+    },
+
+    floatText: function (x, y, text, color) {
+      textsList.push({ x: x, y: y, text: text, color: color, life: 0.9 });
+    },
+
+    shake: function (amount) {
+      Game.shakeAmount = Math.min(14, (Game.shakeAmount || 0) + amount);
+    }
+  };
+
+  /* ------------------------------------------------------------------------
+   * Попадания мечом: для каждого героя во время взмаха проверяем,
+   * кто попал в сектор дуги и ещё не был задет этим же взмахом.
+   * ---------------------------------------------------------------------- */
+  function swordHits() {
+    // Взмах гостя у хозяина только рисуется: по кому он попал, гость
+    // присылает сам (js/online.js), иначе урон прошёл бы дважды
+    var host = window.Online && Online.isHost();
+
+    for (var i = 0; i < Players.list.length; i++) {
+      var p = Players.list[i];
+      var s = p.swing;
+      if (!s || p.downed || (host && p.isRemote)) continue;
+
+      var hits = Combat.sweepTargets(p);
+      for (var j = 0; j < hits.length; j++) {
+        var e = hits[j];
+        var r = Combat.rollHit(p, s.damage);
+        // Щит или призрачность — слизень сам покажет «щит!» / «сквозь!»
+        if (!Enemies.hurt(e, r.dmg, p.x, p.y, s.knockback * (r.crit ? 1.4 : 1))) continue;
+
+        Combat.hitFeedback(p, e, r.dmg, r.crit, s.spin);
+        if (window.Online) {
+          Online.fx('hit', e.x, e.y - e.r * 0.8);
+          Online.fx('dmg', e.x, e.y - e.r * 1.8, Combat.hitText(r.dmg, r.crit),
+            { i: e.netId, c: r.crit ? 1 : 0 });
+        }
       }
     }
   }
@@ -394,8 +438,12 @@
           var e = Enemies.list[k];
           if (e.dead || e.spawnIn > 0) continue;
           if (Math.hypot(e.x - s.x, (e.y - e.r) - s.y) < s.r + e.r) {
-            Enemies.hurt(e, s.damage, s.x, s.y, s.knockback);
-            Combat.floatText(e.x, e.y - e.r * 1.8, '-' + s.damage, '#ffe6f3');
+            if (Enemies.hurt(e, s.damage, s.x, s.y, s.knockback)) {
+              Combat.floatText(e.x, e.y - e.r * 1.8, '-' + s.damage, '#ffe6f3');
+              if (window.Online) {
+                Online.fx('dmg', e.x, e.y - e.r * 1.8, '-' + s.damage, { i: e.netId, w: 1 });
+              }
+            }
             gone = true;
             break;
           }

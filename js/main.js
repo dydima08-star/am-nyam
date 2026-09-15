@@ -14,7 +14,7 @@
   'use strict';
 
   var Game = {
-    VERSION: 10,         // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 11,        // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
@@ -796,6 +796,8 @@
     var i;
     for (i = 0; i < Players.list.length; i++) ents.push({ y: Players.list[i].y, p: Players.list[i] });
     for (i = 0; i < Enemies.list.length; i++) ents.push({ y: Enemies.list[i].y, e: Enemies.list[i] });
+    // Лопающиеся слизни ещё мгновение видны на своём месте
+    for (i = 0; i < Enemies.dying.length; i++) ents.push({ y: Enemies.dying[i].y, e: Enemies.dying[i] });
     ents.sort(function (a, b) { return a.y - b.y; });
     for (i = 0; i < ents.length; i++) {
       if (ents[i].p) Players.drawOne(c, ents[i].p);

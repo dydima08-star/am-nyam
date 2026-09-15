@@ -69,6 +69,21 @@
   var kick = { x: 0, y: 0 };        // у хозяина: толчок, который ждёт героя гостя
   var shopHold = 0;                 // сколько перерыв уже ждёт лавку
 
+  // События для гостя (брызги, цифры урона) повторяются в нескольких кадрах
+  // подряд: быстрый канал может потерять кадр. Гость узнаёт повтор по номеру.
+  var FX_KEEP = 160;                // сколько мс событие ездит в кадрах (у хозяина)
+  var fxSeq = 0, lastFx = 0;        // номер события: у хозяина / последний сыгранный у гостя
+  var fxRecent = [];                // у хозяина: недавние события { at, e }
+
+  // Попадания гостя: он сам решает, по кому попал, и шлёт список хозяину,
+  // пока тот не подтвердит (поле ha в картинке мира)
+  var PREDICT_WAIT = 600;           // сколько мс гость верит своему удару без хозяина
+  var hitSeq = 0;                   // у гостя: номер последнего попадания
+  var sentHit = 0;                  // у гостя: номер последнего отправленного попадания
+  var lastHit = 0;                  // у хозяина: сколько попаданий уже учтено
+  var pendingHits = [];             // у гостя: ещё не подтверждённые попадания
+  var predKills = {};               // у гостя: слизни, чью гибель он уже показал сам
+
   /* ========================================================================
    * Комната
    * ====================================================================== */
@@ -130,6 +145,12 @@
     ri.atkAge = 0;
     kick.x = kick.y = 0;
     ghosts = {};
+    // Номера событий и попаданий не сбрасываем: посылки прошлого забега,
+    // ещё летящие по сети, не должны сбить счёт нового
+    fxQueue = [];
+    fxRecent = [];
+    pendingHits = [];
+    predKills = {};
     shopHold = 0;
     Online.mateInShop = false;
     dropAsk();
@@ -565,11 +586,15 @@
    * ====================================================================== */
   var fxQueue = [];
 
-  /** Короткое событие для гостя: брызги, звук, надпись. */
-  Online.fx = function (kind, x, y, extra) {
-    if (!Online.isHost() || fxQueue.length > 40) return;
-    var e = { k: kind, x: Math.round(x), y: Math.round(y) };
+  /**
+   * Короткое событие для гостя: брызги, звук, надпись.
+   * more — дополнительные поля (номер слизня i, крит c и т.п.).
+   */
+  Online.fx = function (kind, x, y, extra, more) {
+    if (!Online.isHost() || fxQueue.length > 80) return;
+    var e = { k: kind, x: Math.round(x), y: Math.round(y), n: ++fxSeq };
     if (extra) e.v = extra;
+    if (more) for (var key in more) e[key] = more[key];
     fxQueue.push(e);
   };
 
@@ -598,6 +623,42 @@
       ri.atk = Math.min(2, ri.atk + (an - lastAttack));
       lastAttack = an;
     }
+    if (m.h) applyHits(m.h);
+  }
+
+  /**
+   * Попадания гостя. Гость уже показал их у себя — хозяин применяет урон.
+   * Урон считается здесь по номеру удара в комбо, от гостя берётся только
+   * «кого задел» и «был ли крит».
+   */
+  function applyHits(list) {
+    var p = Online.matePlayer();
+    if (!Array.isArray(list) || !p || p.downed) return;
+    for (var i = 0; i < list.length; i++) {
+      var h = list[i];
+      var n = h.n | 0;
+      if (n <= lastHit) continue;                // уже учтено (посылки повторяются)
+      lastHit = n;
+
+      var e = enemyById(h.i | 0);
+      if (!e || e.dead || e.spawnIn > 0) continue;
+      var step = Players.combo[h.k | 0] || Players.combo[0];
+      // Слизень должен быть хотя бы примерно в досягаемости героя гостя
+      var reach = p.swingRadius * step.radiusK + e.r + 90;
+      if (Math.hypot(e.x - p.x, e.y - p.y) > reach) continue;
+
+      var crit = !!h.c && p.crit > 0;
+      var dmg = Math.round(step.damage * (p.damageMul || 1) * (crit ? 2 : 1) * 10) / 10;
+      var knock = step.knockback * (p.knockMul || 1) * (crit ? 1.4 : 1);
+      if (Enemies.hurt(e, dmg, p.x, p.y, knock)) Combat.hitFeedback(p, e, dmg, crit, step.spin);
+    }
+  }
+
+  function enemyById(id) {
+    for (var i = 0; i < Enemies.list.length; i++) {
+      if (Enemies.list[i].netId === id) return Enemies.list[i];
+    }
+    return null;
   }
 
   function sendSnapshot() {
@@ -633,6 +694,9 @@
         o.sp = Math.round(p.speed);
         o.as = +(p.atkSpeed || 1).toFixed(3);
         o.sr = Math.round(p.swingRadius);
+        // Сила удара — чтобы цифры урона у гостя совпадали с хозяйскими
+        o.dm = +(p.damageMul || 1).toFixed(3);
+        o.cr = +(p.crit || 0).toFixed(3);
         if (kick.x || kick.y) {
           o.kx = Math.round(kick.x); o.ky = Math.round(kick.y);
           kick.x = kick.y = 0;
@@ -643,7 +707,7 @@
 
     var es = Enemies.list.map(function (e) {
       var o = {
-        i: e.netId || (e.netId = ++netSeq),
+        i: e.netId,
         ty: e.type,
         x: Math.round(e.x), y: Math.round(e.y),
         hp: Math.max(0, Math.round(e.hp * 10) / 10), mh: e.maxHp,
@@ -688,13 +752,18 @@
       bn: bd ? { a: bd.text, b: bd.sub, l: +bd.life.toFixed(2), m: +(bd.max || bd.life).toFixed(2) } : null
     };
     if (Game.mod.wind) msg.wn = [Math.round(Game.wind.x), Math.round(Game.wind.y)];
-    if (fxQueue.length) { msg.fx = fxQueue; fxQueue = []; }
+    // Событие едет в нескольких кадрах подряд — потеря одного кадра не страшна
+    var now = Date.now();
+    for (var fi = 0; fi < fxQueue.length; fi++) fxRecent.push({ at: now, e: fxQueue[fi] });
+    fxQueue = [];
+    while (fxRecent.length && (now - fxRecent[0].at > FX_KEEP || fxRecent.length > 120)) fxRecent.shift();
+    if (fxRecent.length) msg.fx = fxRecent.map(function (r) { return r.e; });
+    msg.ha = lastHit;                // сколько попаданий гостя уже учтено
     // Кошельки — чтобы у напарника цифры внизу экрана менялись вживую
     msg.cn = [Shop.coins.omnom, Shop.coins.cat, Shop.dust.omnom, Shop.dust.cat];
 
     Net.sendFast(msg);
   }
-  var netSeq = 0;
 
   /* ========================================================================
    * Гость: приём картинки мира
@@ -722,7 +791,10 @@
 
       if (p === me) {
         // Свой герой: двигаем сами, от хозяина берём только то, что он решает
-        if (s.sp) { p.speed = s.sp; p.atkSpeed = s.as; p.swingRadius = s.sr; }
+        if (s.sp) {
+          p.speed = s.sp; p.atkSpeed = s.as; p.swingRadius = s.sr;
+          p.damageMul = s.dm || 1; p.crit = s.cr || 0;
+        }
         if (s.kx || s.ky) Players.push(p, s.kx, s.ky, Math.hypot(s.kx, s.ky));
         if (p.downed) {
           // В обмороке герой лежит там, где его видит хозяин
@@ -754,9 +826,16 @@
       }
     });
 
+    // Хозяин учёл попадания гостя — больше их не повторяем
+    if (m.ha != null) {
+      pendingHits = pendingHits.filter(function (h) { return h.n > m.ha; });
+    }
+
     // Слизни
     var seen = {};
-    Enemies.list = m.e.map(function (s) {
+    var now = Date.now();
+    var list = [];
+    m.e.forEach(function (s) {
       seen[s.i] = 1;
       var e = ghosts[s.i];
       if (!e) {
@@ -766,9 +845,22 @@
           vx: 0, vy: 0, kx: 0, ky: 0, walkVx: 0, walkVy: 0
         };
       }
+      if (e.predDead) {
+        // Гость уже показал, как слизень лопнул, — ждём, пока хозяин подтвердит
+        if (now - e.predDead < PREDICT_WAIT) return;
+        // Не подтвердил (щит, лечение) — слизень снова в игре
+        e.predDead = 0;
+        delete predKills[s.i];
+        Enemies.unbury(e);
+      }
       e.netX = s.x; e.netY = s.y;
-      e.hp = s.hp; e.maxHp = s.mh; e.r = s.r;
-      e.flash = s.f; e.spawnIn = s.sp; e.squash = s.sq; e.vx = s.vx;
+      e.maxHp = s.mh; e.r = s.r;
+      // Свой удар гость уже показал: пока хозяин его не учёл, здоровье не «отрастает»
+      e.hp = s.hp;
+      if (e.predAt && now - e.predAt < PREDICT_WAIT) e.hp = Math.min(e.hp, e.predHp);
+      e.flash = Math.max(s.f, e.flash || 0);
+      e.squash = Math.min(s.sq, e.squash || 1);
+      e.spawnIn = s.sp; e.vx = s.vx;
       e.shield = s.sh || 0; e.maxShield = s.sh || 0;
       e.ghostPhase = s.gp;
       e.isBoss = !!s.b;
@@ -779,9 +871,15 @@
         e.targetX = s.tx; e.targetY = s.ty; e.spinAngle = s.sa;
         e.aimX = s.ax; e.aimY = s.ay;
       }
-      return e;
+      list.push(e);
     });
-    for (var id in ghosts) if (!seen[id]) delete ghosts[id];
+    Enemies.list = list;
+    for (var id in ghosts) {
+      if (seen[id]) continue;
+      // Слизня больше нет — он лопается на месте, а не пропадает
+      if (!ghosts[id].predDead) Enemies.bury(ghosts[id]);
+      delete ghosts[id];
+    }
 
     // Конфеты, снаряды, лужи
     Combat.setNetState(m.d, m.b, m.pd);
@@ -809,7 +907,13 @@
       Game.bannerData = null;
     }
 
-    if (m.fx) m.fx.forEach(playFx);
+    if (m.fx) {
+      m.fx.forEach(function (e) {
+        if ((e.n | 0) <= lastFx) return;           // уже сыграно из прошлого кадра
+        lastFx = e.n | 0;
+        playFx(e);
+      });
+    }
 
     if (m.cn) {
       Shop.coins.omnom = m.cn[0]; Shop.coins.cat = m.cn[1];
@@ -824,7 +928,19 @@
         Combat.particles(e.x, e.y, '#ffffff', 6, { speed: 120 });
         if (window.Sound) Sound.play('hit');
         break;
+      case 'dmg': {
+        var color = e.c ? '#ffd24a' : (e.w ? '#ffe6f3' : '#fff2a8');
+        var g = e.i && ghosts[e.i];
+        // Цифра — над слизнем там, где его видно у гостя
+        if (g) Combat.floatText(g.x + (Math.random() * 16 - 8), g.y - g.r * 1.8, e.v, color);
+        else Combat.floatText(e.x, e.y, e.v, color);
+        break;
+      }
       case 'kill':
+        if (e.i && predKills[e.i]) {               // гость уже показал это сам
+          delete predKills[e.i];
+          break;
+        }
         Combat.particles(e.x, e.y, e.v || '#8fd14f', 12, { speed: 150, size: 5 });
         if (window.Sound) Sound.play('pop');
         break;
@@ -873,7 +989,51 @@
       e.y += (e.netY - e.y) * k;
       e.wobble += dt * 4;
       if (e.flash > 0) e.flash = Math.max(0, e.flash - dt);
+      e.squash += (1 - e.squash) * Math.min(1, dt * 9);   // форма возвращается после удара
     }
+    Enemies.updateDying(dt);
+  }
+
+  /**
+   * Гость сам решает, по кому попал его меч: удар виден сразу — вспышка,
+   * цифра, а добивающий удар сразу лопает слизня. Хозяину уходит список
+   * попаданий, урон применяет он.
+   */
+  function guestHits(p) {
+    if (!p || !p.swing || p.downed) return;
+    var s = p.swing;
+    var hits = Combat.sweepTargets(p);
+    for (var i = 0; i < hits.length; i++) {
+      var e = hits[i];
+      if (!e.netId) continue;
+      var r = Combat.rollHit(p, s.damage);
+      pendingHits.push({ n: ++hitSeq, i: e.netId, k: s.index | 0, c: r.crit ? 1 : 0 });
+
+      // Щит и призрачность решает хозяин — он и пришлёт «щит!» / «сквозь!»
+      var ghostly = e.def.ghost && (0.5 + Math.sin((e.ghostPhase || 0) * 1.1) * 0.5) < 0.45;
+      if (e.shield > 0 || ghostly) { e.flash = 0.12; continue; }
+
+      e.flash = 0.14;
+      e.squash = 0.72;
+      e.hp -= r.dmg;
+      e.predHp = e.hp;
+      e.predAt = Date.now();
+      Combat.hitFeedback(p, e, r.dmg, r.crit, s.spin);
+      // Лечащиеся слизни могут «отрасти» у хозяина — с ними не торопимся
+      if (!e.isBoss && e.hp <= (e.def.regen ? -0.3 : 0)) predictKill(e);
+    }
+    // Если хозяин долго молчит, очередь не растёт бесконечно
+    if (pendingHits.length > 40) pendingHits.splice(0, pendingHits.length - 40);
+  }
+
+  /** Гость показывает гибель слизня сразу, не дожидаясь хозяина. */
+  function predictKill(e) {
+    var k = Enemies.list.indexOf(e);
+    if (k >= 0) Enemies.list.splice(k, 1);
+    e.predDead = Date.now();
+    predKills[e.netId] = 1;
+    Enemies.bury(e);
+    playFx({ k: 'kill', x: e.x, y: e.y - e.r * 0.6, v: e.def.body });
   }
 
   /* ========================================================================
@@ -905,18 +1065,26 @@
     if (Game.state === 'playing') {
       var me = Online.localPlayer();
       Players.updateLocal(me, dt);
+      guestHits(me);
 
       inputTimer -= dt;
-      if (inputTimer <= 0 && me) {
+      // Свежее попадание уходит хозяину сразу, не дожидаясь очередной посылки
+      var fresh = pendingHits.length && pendingHits[pendingHits.length - 1].n > sentHit;
+      if ((inputTimer <= 0 || fresh) && me) {
         inputTimer = Math.max(0, inputTimer + 1 / INPUT_HZ);
-        Net.sendFast({
+        var inp = {
           t: 'i', q: ++inputSeq,
           x: Math.round(me.x), y: Math.round(me.y),
           vx: Math.round(me.vx), vy: Math.round(me.vy),
           f: me.facing,
           ax: +(me.aimX || 0).toFixed(2), ay: +(me.aimY || 0).toFixed(2),
           an: attackCount
-        });
+        };
+        if (pendingHits.length) {
+          inp.h = pendingHits;
+          sentHit = pendingHits[pendingHits.length - 1].n;
+        }
+        Net.sendFast(inp);
       }
       smooth(dt);
       Combat.updateVisualsOnly(dt);
@@ -1259,6 +1427,11 @@
       lastInput = 0;
       attackCount = 0;
       lastAttack = 0;
+      fxSeq = 0; lastFx = 0;
+      fxQueue = []; fxRecent = [];
+      hitSeq = 0; lastHit = 0; sentHit = 0;
+      pendingHits = [];
+      predKills = {};
       Online.mateInShop = false;
       if (Online.isHost()) {
         Net.send({ t: 'hello', hero: Online.mateHero });

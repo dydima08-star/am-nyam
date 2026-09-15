@@ -104,8 +104,12 @@
     return Config.world(Game.world).waves;
   }
 
+  var DIE_TIME = 0.22;   // сколько длится «лопание» побеждённого слизня
+  var netSeq = 0;        // номера слизней для игры вдвоём
+
   var Enemies = {
     list: [],
+    dying: [],          // побеждённые слизни, которые ещё доигрывают лопание
     types: TYPES,
 
     /* --- состояние волн --- */
@@ -118,6 +122,7 @@
     /** Сброс при старте новой партии. */
     reset: function () {
       Enemies.list = [];
+      Enemies.dying = [];
       Enemies.wave = 0;
       Enemies.queue = [];
       Enemies.state = 'pause';
@@ -144,13 +149,57 @@
         if (e.spawnIn > 0) e.spawnIn -= dt;
         if (e.isBoss) Boss.update(e, dt);
         else updateEnemy(e, dt);
-        if (e.dead) Enemies.list.splice(i, 1);
+        if (e.dead) {
+          Enemies.list.splice(i, 1);
+          Enemies.bury(e);
+        }
       }
+      Enemies.updateDying(dt);
       separate();   // чтобы слизни не слипались в одну кучу
     },
 
+    /**
+     * Слизень побеждён: он уже не в игре, но ещё мгновение раздувается
+     * и тает на месте — так видно, что его добил именно этот удар.
+     */
+    bury: function (e) {
+      if (e.isBoss || e.dieT != null) return;   // босс уходит со своими эффектами
+      e.dieT = DIE_TIME;
+      Enemies.dying.push(e);
+    },
+
+    /** Слизень вернулся в игру (гость поторопился его похоронить). */
+    unbury: function (e) {
+      var k = Enemies.dying.indexOf(e);
+      if (k >= 0) Enemies.dying.splice(k, 1);
+      e.dieT = null;
+    },
+
+    updateDying: function (dt) {
+      for (var i = Enemies.dying.length - 1; i >= 0; i--) {
+        var e = Enemies.dying[i];
+        e.dieT -= dt;
+        if (e.dieT <= 0) { e.dieT = null; Enemies.dying.splice(i, 1); }
+      }
+    },
+
     /** Рисование одного слизня (порядок задаёт main.js — кто ниже, тот поверх). */
-    drawOne: function (c, e) { e.isBoss ? Boss.draw(c, e) : drawSlime(c, e); },
+    drawOne: function (c, e) {
+      if (e.dieT != null) {
+        // Лопается: раздувается и тает
+        var k = 1 - Math.max(0, e.dieT) / DIE_TIME;
+        var s = 1 + k * 0.3;
+        c.save();
+        c.globalAlpha = 1 - k;
+        c.translate(e.x, e.y);
+        c.scale(s, s);
+        c.translate(-e.x, -e.y);
+        drawSlime(c, e);
+        c.restore();
+        return;
+      }
+      e.isBoss ? Boss.draw(c, e) : drawSlime(c, e);
+    },
 
     draw: function (c) {
       var sorted = Enemies.list.slice().sort(function (a, b) { return a.y - b.y; });
@@ -192,6 +241,7 @@
         summonTimer: t.summon ? t.summon.every * Math.random() : 0,
         healTimer: t.heal ? t.heal.every * Math.random() : 0,
         ghostPhase: Math.random() * 4,
+        netId: ++netSeq,        // по этому номеру слизня узнаёт телефон гостя
         dead: false
       };
       Enemies.list.push(e);
@@ -209,12 +259,13 @@
       return e;
     },
 
-    /** Урон слизню. Вызывается из combat.js. */
+    /** Урон слизню. Вызывается из combat.js. Возвращает true, если урон прошёл. */
     hurt: function (e, dmg, fromX, fromY, knockback) {
       // Призрак неуязвим, пока полупрозрачный
       if (e.def.ghost && e.ghostAlpha < 0.45) {
         Combat.floatText(e.x, e.y - e.r * 1.6, 'сквозь!', '#d9c8ff');
-        return;
+        if (window.Online) Online.fx('text', e.x, e.y - e.r * 1.6, 'сквозь!');
+        return false;
       }
 
       // Щит принимает удар на себя
@@ -223,6 +274,7 @@
         e.flash = 0.12;
         e.shieldTimer = 6;
         Combat.floatText(e.x, e.y - e.r * 1.8, 'щит!', '#cdeeff');
+        if (window.Online) Online.fx('text', e.x, e.y - e.r * 1.8, 'щит!');
         Combat.particles(e.x, e.y - e.r * 0.6, '#ffffff', 6, { speed: 110, star: true });
         if (knockback) {
           var sdx = e.x - fromX, sdy = e.y - fromY;
@@ -230,7 +282,7 @@
           e.kx += sdx / sd * knockback * 0.3;
           e.ky += sdy / sd * knockback * 0.3;
         }
-        return;
+        return false;
       }
 
       e.hp -= dmg;
@@ -247,6 +299,7 @@
 
       if (e.hp <= 0) kill(e);
       else Combat.particles(e.x, e.y - e.r * 0.6, e.def.body, 5, { speed: 90 });
+      return true;
     }
   };
 
@@ -257,7 +310,7 @@
     e.dead = true;
     Game.stats.kills++;
     if (window.Sound) Sound.play(e.isBoss ? 'bossdown' : 'pop');
-    if (window.Online) Online.fx('kill', e.x, e.y - e.r * 0.6, e.def.body);
+    if (window.Online) Online.fx('kill', e.x, e.y - e.r * 0.6, e.def.body, { i: e.netId });
 
     // Босса победили — мир пройден
     if (e.isBoss) {
@@ -1030,7 +1083,7 @@
     c.restore();
 
     // Здоровье слизня: полоска (когда уже поцарапали) и цифры «осталось/всего»
-    if (e.spawnIn <= 0) {
+    if (e.spawnIn <= 0 && e.dieT == null) {
       var by = e.y - e.r * 2.3;
 
       if (e.hp < e.maxHp) {
