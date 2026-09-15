@@ -1,5 +1,5 @@
 /* ============================================================================
- * js/weapons.js — оружие героев: по 16 штук каждому.
+ * js/weapons.js — оружие героев: по 24 штуки каждому.
  *
  * Всё оружие нарисовано прямо кодом (никаких картинок): одна и та же функция
  * рисует его и на карточке в магазине, и в лапке у героя, и вдоль дуги взмаха.
@@ -313,6 +313,111 @@
         c.fillStyle = '#2b2b2b';
         c.beginPath(); c.arc(25, -2, 2.4, 0, Math.PI * 2); c.fill();
         grip(c, '#4e8a2a', '#2f5c18', '#d8ffb0');
+      } },
+
+    /* --- ещё восемь: пять за конфеты и три секретных --- */
+    { id: 'spoon', name: 'Ложка', desc: 'Удобная, как за обедом',
+      price: 30, damage: 1.15, speed: 1.2, reach: 1, trail: '#f2f6fa',
+      draw: function (c) {
+        stick(c, 28, '#cfd8e3', 5);
+        c.fillStyle = '#e3e9f0'; c.strokeStyle = '#7c8896'; c.lineWidth = 2;
+        c.beginPath(); c.ellipse(40, 0, 11, 7.5, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.fillStyle = 'rgba(255,255,255,0.8)';
+        c.beginPath(); c.ellipse(37, -2.5, 4.5, 2, -0.2, 0, Math.PI * 2); c.fill();
+        grip(c, '#8d97a6', '#5f6775', null);
+      } },
+
+    { id: 'marsh', name: 'Зефирная дубинка', desc: 'Пухлая, а слизни отлетают',
+      price: 100, damage: 1.8, speed: 0.85, reach: 1.05, knock: 1.5, trail: '#fff0f5',
+      draw: function (c) {
+        stick(c, 22, '#d9a86a', 6);
+        var cols = ['#fff4f8', '#ffc9dc', '#fff4f8'];
+        for (var i = 0; i < 3; i++) {
+          c.fillStyle = cols[i]; c.strokeStyle = '#d98eae'; c.lineWidth = 2;
+          rr(c, 20 + i * 11, -10, 12, 20, 5); c.fill(); c.stroke();
+        }
+        grip(c, '#a2703f', '#6d4622', null);
+      } },
+
+    { id: 'waffle', name: 'Вафельный меч', desc: 'Хрустит при каждом ударе',
+      price: 170, damage: 2.2, speed: 1.05, reach: 1.15, trail: '#f5dca8',
+      draw: function (c) {
+        c.fillStyle = '#e8b86a'; c.strokeStyle = '#a9762f'; c.lineWidth = 2;
+        rr(c, 6, -7, 46, 14, 3); c.fill(); c.stroke();
+        c.strokeStyle = 'rgba(140, 90, 30, 0.6)'; c.lineWidth = 1.4;
+        for (var i = 1; i < 6; i++) {
+          c.beginPath(); c.moveTo(6 + i * 7.7, -7); c.lineTo(6 + i * 7.7, 7); c.stroke();
+        }
+        c.beginPath(); c.moveTo(6, 0); c.lineTo(52, 0); c.stroke();
+        grip(c, '#8c5a2b', '#5d3a17', '#f5dca8');
+      } },
+
+    { id: 'jelly', name: 'Мармеладная сабля', desc: 'Гнётся, но режет быстро',
+      price: 350, damage: 2.9, speed: 1.2, reach: 1.2, trail: '#ffb0c8',
+      draw: function (c) {
+        c.lineCap = 'round';
+        c.strokeStyle = '#c23a66'; c.lineWidth = 11;
+        c.beginPath(); c.moveTo(6, 2); c.quadraticCurveTo(32, 6, 56, -8); c.stroke();
+        c.strokeStyle = '#ff6f9f'; c.lineWidth = 8;
+        c.beginPath(); c.moveTo(6, 2); c.quadraticCurveTo(32, 6, 56, -8); c.stroke();
+        c.fillStyle = '#ffffff';
+        [[18, 3], [30, 3.5], [42, 0], [51, -5]].forEach(function (p) {
+          c.beginPath(); c.arc(p[0], p[1], 1.4, 0, Math.PI * 2); c.fill();
+        });
+        grip(c, '#7a2a48', '#4a1428', '#ffb0c8');
+      } },
+
+    { id: 'ruby', name: 'Рубиновый клинок', desc: 'Горит алым огоньком',
+      price: 510, damage: 3.35, speed: 1.05, reach: 1.25, trail: '#ffb3b3',
+      draw: function (c) {
+        var g = c.createLinearGradient(4, -8, 56, 8);
+        g.addColorStop(0, '#ffe0e0'); g.addColorStop(0.5, '#ff5f6f'); g.addColorStop(1, '#ffd0d0');
+        blade(c, 56, 8, g, '#a8243a');
+        shine(c, 56);
+        grip(c, '#5d3a17', '#3b2210', '#ffd96b');
+        c.fillStyle = '#ff2f4f'; c.strokeStyle = '#8a1428'; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(5, -5); c.lineTo(9, 0); c.lineTo(5, 5); c.lineTo(1, 0);
+        c.closePath(); c.fill(); c.stroke();
+      } },
+
+    { id: 'honey', name: 'Медовый клинок', desc: 'Липкий: слизни не успевают увернуться', secret: true,
+      dust: 5, damage: 3.3, speed: 1.25, reach: 1.2, trail: '#ffe08a',
+      draw: function (c) {
+        var g = c.createLinearGradient(4, 0, 54, 0);
+        g.addColorStop(0, '#ffcf5e'); g.addColorStop(1, '#fff3c0');
+        blade(c, 54, 8, g, '#c9860d');
+        c.fillStyle = '#ffb627';
+        c.beginPath(); c.moveTo(20, 7); c.quadraticCurveTo(22, 14, 24, 7); c.fill();
+        c.beginPath(); c.moveTo(34, 6); c.quadraticCurveTo(36, 12, 38, 6); c.fill();
+        grip(c, '#8c5a2b', '#5d3a17', '#ffcf5e');
+      } },
+
+    { id: 'thunder', name: 'Грозовой меч', desc: 'Бьёт с раскатом грома', secret: true,
+      dust: 6, damage: 3.5, speed: 1.2, reach: 1.25, knock: 1.5, trail: '#fff59a',
+      draw: function (c) {
+        var g = c.createLinearGradient(4, -8, 56, 8);
+        g.addColorStop(0, '#6f7fa8'); g.addColorStop(1, '#c6d2f0');
+        blade(c, 56, 8, g, '#3a4670');
+        c.fillStyle = '#fff59a'; c.strokeStyle = '#c9a20d'; c.lineWidth = 1.2;
+        c.beginPath();
+        c.moveTo(18, -5); c.lineTo(32, -2); c.lineTo(27, 0); c.lineTo(44, 4);
+        c.lineTo(28, 2); c.lineTo(32, 0); c.closePath(); c.fill(); c.stroke();
+        grip(c, '#3a4670', '#232b47', '#fff59a');
+      } },
+
+    { id: 'sun', name: 'Солнечный меч', desc: 'Сияет почти как легенда', secret: true,
+      dust: 12, damage: 4.3, speed: 1.2, reach: 1.35, knock: 1.3, trail: '#ffe7a0',
+      draw: function (c) {
+        c.save();
+        c.globalAlpha = 0.35; c.fillStyle = '#ffd24a';
+        c.beginPath(); c.arc(4, 0, 15, 0, Math.PI * 2); c.fill();
+        c.restore();
+        var g = c.createLinearGradient(4, 0, 60, 0);
+        g.addColorStop(0, '#ffb627'); g.addColorStop(0.6, '#ffe7a0'); g.addColorStop(1, '#ffffff');
+        blade(c, 60, 8.5, g, '#c9860d');
+        shine(c, 60);
+        grip(c, '#c9860d', '#8a5a08', '#ffe7a0');
+        c.fillStyle = '#fff3c0'; star(c, 5, 0, 6, 8, 0.5); c.fill();
       } }
   ];
 
@@ -556,6 +661,123 @@
         c.restore();
         c.fillStyle = 'rgba(255,255,255,0.85)';
         c.beginPath(); c.arc(40, -5, 3, 0, Math.PI * 2); c.fill();
+      } },
+
+    /* --- ещё восемь: пять за конфеты и три секретных --- */
+    { id: 'brush', name: 'Кисточка', desc: 'Раскрашивает слизней в синяки',
+      price: 30, damage: 1.15, speed: 1.25, reach: 1, trail: '#d7c9ff',
+      draw: function (c) {
+        stick(c, 30, '#e0b27a', 5);
+        c.fillStyle = '#cfd8e3'; c.strokeStyle = '#7c8896'; c.lineWidth = 1.6;
+        rr(c, 28, -4.5, 8, 9, 2); c.fill(); c.stroke();
+        c.fillStyle = '#a88bff'; c.strokeStyle = '#6a55c9'; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(36, -5); c.quadraticCurveTo(50, -4, 54, 0);
+        c.quadraticCurveTo(50, 4, 36, 5); c.closePath(); c.fill(); c.stroke();
+      } },
+
+    { id: 'yarn', name: 'Клубок на ниточке', desc: 'Раскручивается и сбивает с лапок',
+      price: 100, damage: 1.7, speed: 0.9, reach: 1.2, knock: 1.5, trail: '#ffc2dd',
+      draw: function (c) {
+        c.strokeStyle = '#ff8fb4'; c.lineWidth = 2; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(-8, 0); c.bezierCurveTo(10, -8, 20, 8, 32, 0); c.stroke();
+        c.fillStyle = '#ff8fb4'; c.strokeStyle = '#d45d8e'; c.lineWidth = 2.2;
+        c.beginPath(); c.arc(42, 0, 12, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.strokeStyle = '#ffd7e8'; c.lineWidth = 1.5;
+        for (var i = -1; i <= 1; i++) {
+          c.beginPath(); c.ellipse(42, 0, 11, 4.5, 0.7 + i * 0.7, 0, Math.PI * 2); c.stroke();
+        }
+      } },
+
+    { id: 'flower', name: 'Цветочек', desc: 'Пахнет весной, колет шипами',
+      price: 170, damage: 2.1, speed: 1.2, reach: 1.1, trail: '#ffe0f0',
+      draw: function (c) {
+        stick(c, 34, '#6fbf4a', 4.5);
+        c.fillStyle = '#8fd14f';
+        c.beginPath(); c.ellipse(16, -5, 7, 3, -0.5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#ffb4d2'; c.strokeStyle = '#d45d8e'; c.lineWidth = 1.6;
+        for (var i = 0; i < 5; i++) {
+          var a = i * Math.PI * 2 / 5;
+          c.beginPath(); c.arc(44 + Math.cos(a) * 7, Math.sin(a) * 7, 6, 0, Math.PI * 2);
+          c.fill(); c.stroke();
+        }
+        c.fillStyle = '#ffdf5e';
+        c.beginPath(); c.arc(44, 0, 4.5, 0, Math.PI * 2); c.fill();
+      } },
+
+    { id: 'fan', name: 'Веер', desc: 'Взмах — и ветер сдувает всех вокруг',
+      price: 350, damage: 2.8, speed: 1.15, reach: 1.4, trail: '#d9f0ff',
+      draw: function (c) {
+        var cols = ['#9ed8f5', '#ffffff', '#ffb4d2', '#ffffff', '#9ed8f5'];
+        for (var i = 0; i < 5; i++) {
+          var a0 = -0.7 + i * 0.28, a1 = a0 + 0.28;
+          c.fillStyle = cols[i]; c.strokeStyle = '#4e93b5'; c.lineWidth = 1.6;
+          c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 52, a0, a1); c.closePath();
+          c.fill(); c.stroke();
+        }
+        c.fillStyle = '#d45d9e';
+        c.beginPath(); c.arc(0, 0, 4, 0, Math.PI * 2); c.fill();
+        stick(c, 2, '#a2703f', 5);
+      } },
+
+    { id: 'snowflake', name: 'Снежный жезл', desc: 'Морозит так, что слизни стучат зубами',
+      price: 510, damage: 3.3, speed: 1.2, reach: 1.25, trail: '#e3f6ff',
+      draw: function (c) {
+        stick(c, 34, '#7fc4e0', 5);
+        c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round';
+        for (var i = 0; i < 6; i++) {
+          var a = i * Math.PI / 3;
+          c.beginPath(); c.moveTo(46, 0); c.lineTo(46 + Math.cos(a) * 13, Math.sin(a) * 13); c.stroke();
+        }
+        c.strokeStyle = '#5ea9cf'; c.lineWidth = 1.4;
+        for (i = 0; i < 6; i++) {
+          a = i * Math.PI / 3;
+          c.beginPath(); c.moveTo(46, 0); c.lineTo(46 + Math.cos(a) * 13, Math.sin(a) * 13); c.stroke();
+        }
+        c.fillStyle = '#eaf9ff';
+        c.beginPath(); c.arc(46, 0, 3.5, 0, Math.PI * 2); c.fill();
+      } },
+
+    { id: 'butterfly', name: 'Крылышки бабочки', desc: 'Порхает быстрее ветра', secret: true,
+      dust: 5, damage: 3.2, speed: 1.4, reach: 1.2, trail: '#ffe0a8',
+      draw: function (c) {
+        stick(c, 30, '#6a55c9', 4);
+        c.fillStyle = '#ffb04a'; c.strokeStyle = '#a8561f'; c.lineWidth = 1.8;
+        c.beginPath(); c.ellipse(40, -9, 11, 8, -0.4, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.beginPath(); c.ellipse(40, 9, 11, 8, 0.4, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.fillStyle = '#ffe9a8';
+        c.beginPath(); c.arc(42, -9, 3, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(42, 9, 3, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#42338a'; rr(c, 30, -2, 22, 4, 2); c.fill();
+      } },
+
+    { id: 'bubble', name: 'Пузырьковая палочка', desc: 'Пузыри лопаются и расталкивают слизней', secret: true,
+      dust: 6, damage: 3.4, speed: 1.2, reach: 1.3, knock: 1.8, trail: '#d9f3ff',
+      draw: function (c) {
+        stick(c, 30, '#ff8fd0', 4.5);
+        c.strokeStyle = '#ff8fd0'; c.lineWidth = 3;
+        c.beginPath(); c.arc(38, 0, 7, 0, Math.PI * 2); c.stroke();
+        c.fillStyle = 'rgba(190, 235, 255, 0.55)'; c.strokeStyle = '#8fd6ff'; c.lineWidth = 1.6;
+        [[50, -6, 7], [56, 7, 5], [46, 12, 3.5]].forEach(function (b) {
+          c.beginPath(); c.arc(b[0], b[1], b[2], 0, Math.PI * 2); c.fill(); c.stroke();
+        });
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.arc(48, -8, 1.8, 0, Math.PI * 2); c.fill();
+      } },
+
+    { id: 'scepter', name: 'Королевский скипетр', desc: 'Для самой важной кошечки', secret: true,
+      dust: 12, damage: 4.1, speed: 1.25, reach: 1.35, trail: '#fff0b8',
+      draw: function (c) {
+        stick(c, 34, '#e0a413', 5.5);
+        c.fillStyle = '#ffd96b'; c.strokeStyle = '#b87a0d'; c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(34, -10); c.lineTo(40, -4); c.lineTo(46, -12); c.lineTo(52, -4);
+        c.lineTo(58, -10); c.lineTo(56, 8); c.lineTo(36, 8); c.closePath();
+        c.fill(); c.stroke();
+        c.fillStyle = '#ff5fae';
+        c.beginPath(); c.arc(46, 2, 3.5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#8fd6ff';
+        c.beginPath(); c.arc(39, 3, 2, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(53, 3, 2, 0, Math.PI * 2); c.fill();
       } }
   ];
 
