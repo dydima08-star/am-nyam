@@ -1,9 +1,9 @@
 /* ============================================================================
  * js/equipment.js — экипировка героев: шлем, тело, ноги и перчатки.
  *
- * У каждого героя свой набор из 15 вещей: по четыре на шлем, тело и ноги,
- * и три перчатки — они самые редкие и дорогие, зато дают урон, скорость
- * ударов и шанс критического удара.
+ * У каждого героя свой набор из 32 вещей: по восемь на шлем, тело, ноги
+ * и перчатки. Перчатки самые дорогие, зато дают урон, скорость ударов
+ * и шанс критического удара.
  *
  * Всё нарисовано кодом, как и оружие: одна функция рисует значок и на
  * карточке в лавке, и где угодно ещё.
@@ -296,6 +296,65 @@
     }
   }
 
+  /* --- самые-самые: рисунки для новых легенд --- */
+  function drawStarCrown(c, col) {                  // звёздная корона
+    c.save();
+    c.globalAlpha = 0.3; c.fillStyle = col.c || '#fff6b0';
+    c.beginPath(); c.ellipse(0, -2, 30, 22, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+    drawCrown(c, col);
+    c.fillStyle = '#fff6b0'; c.strokeStyle = col.b; c.lineWidth = 1.5;
+    star(c, 0, -24, 6); c.fill(); c.stroke();
+    star(c, -20, -18, 4); c.fill(); c.stroke();
+    star(c, 20, -18, 4); c.fill(); c.stroke();
+  }
+
+  function drawWings(c, col) {                      // крылышки
+    for (var s = -1; s <= 1; s += 2) {
+      c.save(); c.scale(s, 1);
+      c.beginPath();
+      c.moveTo(4, -4);
+      c.quadraticCurveTo(20, -26, 30, -14);
+      c.quadraticCurveTo(26, -4, 30, 4);
+      c.quadraticCurveTo(22, 8, 26, 16);
+      c.quadraticCurveTo(12, 16, 4, 6);
+      c.closePath(); fill(c, col.a, col.b);
+      c.strokeStyle = col.b; c.lineWidth = 1.8;
+      c.beginPath(); c.moveTo(8, -2); c.lineTo(24, -10); c.stroke();
+      c.beginPath(); c.moveTo(8, 2); c.lineTo(24, 4); c.stroke();
+      c.restore();
+    }
+    c.beginPath(); c.ellipse(0, 2, 7, 13, 0, 0, Math.PI * 2); fill(c, col.c || '#fff', col.b);
+  }
+
+  function drawWingBoots(c, col) {                  // сапожки с крылышками
+    drawBoots(c, col);
+    c.fillStyle = '#ffffff'; c.strokeStyle = col.b; c.lineWidth = 1.8;
+    for (var s = -1; s <= 1; s += 2) {
+      c.save(); c.translate(s * 13, -8); c.scale(s, 1);
+      c.beginPath();
+      c.moveTo(-9, -2); c.quadraticCurveTo(-22, -14, -24, -4);
+      c.quadraticCurveTo(-18, 0, -22, 4); c.quadraticCurveTo(-14, 4, -9, 3);
+      c.closePath(); c.fill(); c.stroke();
+      c.restore();
+    }
+  }
+
+  function drawCrystalGlove(c, col) {               // хрустальные перчатки
+    for (var s = -1; s <= 1; s += 2) {
+      c.save(); c.translate(s * 13, 2); c.scale(s, 1);
+      rr(c, -11, -16, 22, 24, 7); fill(c, col.a, col.b);
+      rr(c, -15, -6, 8, 11, 4); fill(c, col.a, col.b);
+      c.fillStyle = 'rgba(255,255,255,0.6)';
+      c.beginPath(); c.ellipse(-4, -9, 3, 6, 0.3, 0, Math.PI * 2); c.fill();
+      c.restore();
+    }
+    c.fillStyle = col.c || '#b8f0ff'; c.strokeStyle = col.b; c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(0, -26); c.lineTo(7, -16); c.lineTo(0, -4); c.lineTo(-7, -16);
+    c.closePath(); c.fill(); c.stroke();
+  }
+
   /* ------------------------------------------------------------------------
    * Наборы вещей. Цены в конфетах; dust — цена в звёздной пыли.
    * ---------------------------------------------------------------------- */
@@ -351,7 +410,36 @@
     item('gloves', 'battle', 'Боевые перчатки', 'бьют ощутимо сильнее', 0,
       { damage: 0.15, atkSpeed: 0.10 }, drawBattleGlove, { a: '#6b4423', b: '#3b2210', c: '#ffd96b' }, 10),
     item('gloves', 'champ', 'Перчатки чемпиона', 'иногда бьют вдвое сильнее', 0,
-      { damage: 0.25, atkSpeed: 0.15, crit: 0.15 }, drawChampGlove, { a: '#ffc93c', b: '#b87a0d' }, 18)
+      { damage: 0.25, atkSpeed: 0.15, crit: 0.15 }, drawChampGlove, { a: '#ffc93c', b: '#b87a0d' }, 18),
+
+    /* --- самые-самые: по три новые вещи в каждый слот --- */
+    item('helmet', 'viking', 'Шлем викинга', 'лучший шлем за конфеты', 520,
+      { hp: 3, dodge: 0.07, speed: 0.03 }, drawKnightHelm, { a: '#b5744a', b: '#5e3418', c: '#ffd96b' }),
+    item('helmet', 'candycrown', 'Леденцовая корона', 'сладкая, но крепкая', 0,
+      { hp: 4, dodge: 0.10 }, drawCrown, { a: '#ffb3d1', b: '#c23a66', c: '#8fd6ff' }, 8),
+    item('helmet', 'starcrown', 'Звёздная корона', 'новая легенда лавки', 0,
+      { hp: 5, dodge: 0.12 }, drawStarCrown, { a: '#ffd96b', b: '#a8700a', c: '#fff6b0' }, 10),
+
+    item('body', 'knightarmor', 'Рыцарские латы', 'лучшая броня за конфеты', 580,
+      { hp: 3, dodge: 0.12 }, drawPlate, { a: '#e3e9f0', b: '#5a6776' }),
+    item('body', 'candyarmor', 'Карамельный панцирь', 'слизни об него зубы ломают', 0,
+      { hp: 4, dodge: 0.16 }, drawPlate, { a: '#ff8fb4', b: '#a8284f' }, 10),
+    item('body', 'wings', 'Крылья Ам Няма', 'от них удары пролетают мимо', 0,
+      { hp: 5, dodge: 0.18 }, drawWings, { a: '#e8fbff', b: '#4e93b5', c: '#8fd14f' }, 12),
+
+    item('boots', 'jumpers', 'Сапоги-прыгуны', 'лучшие ножки за конфеты', 480,
+      { speed: 0.20, dodge: 0.05 }, drawBoots, { a: '#4e8a2a', b: '#2a4f14', c: '#ffdf5e' }),
+    item('boots', 'rockets', 'Ракетные пружинки', 'быстрее ветра', 0,
+      { speed: 0.28, dodge: 0.09 }, drawSprings, { a: '#ff6f6f', b: '#a82a2a', c: '#ffdf5e' }, 9),
+    item('boots', 'wingboots', 'Крылатые сапожки', 'бегут, не касаясь земли', 0,
+      { speed: 0.32, dodge: 0.10 }, drawWingBoots, { a: '#8fd6ff', b: '#2f5d8a', c: '#fff6b0' }, 11),
+
+    item('gloves', 'iron', 'Железные кулачки', 'лучшие перчатки за конфеты', 750,
+      { damage: 0.14, atkSpeed: 0.08, hp: 1 }, drawBattleGlove, { a: '#c7d2dd', b: '#5a6776', c: '#ff6f8f' }),
+    item('gloves', 'candyfist', 'Сахарные кулаки', 'сладкий, но мощный удар', 0,
+      { damage: 0.27, atkSpeed: 0.17, crit: 0.16 }, drawChampGlove, { a: '#ff8fb4', b: '#a8284f' }, 20),
+    item('gloves', 'crystal', 'Хрустальные перчатки', 'сильнее не бывает', 0,
+      { damage: 0.30, atkSpeed: 0.18, crit: 0.18 }, drawCrystalGlove, { a: '#bfefff', b: '#2f7fa8', c: '#e6d4ff' }, 22)
   ];
 
   var CAT = [
@@ -401,7 +489,36 @@
     item('gloves', 'battle', 'Боевые лапки', 'удар становится злее', 0,
       { damage: 0.15, atkSpeed: 0.10 }, drawBattleGlove, { a: '#ff8fb4', b: '#c23a66', c: '#fff0f5' }, 10),
     item('gloves', 'champ', 'Лапки чемпионки', 'иногда бьют вдвое сильнее', 0,
-      { damage: 0.25, atkSpeed: 0.15, crit: 0.15 }, drawChampGlove, { a: '#ffd7f0', b: '#d45d9e' }, 18)
+      { damage: 0.25, atkSpeed: 0.15, crit: 0.15 }, drawChampGlove, { a: '#ffd7f0', b: '#d45d9e' }, 18),
+
+    /* --- самые-самые: по три новые вещи в каждый слот --- */
+    item('helmet', 'ears', 'Шлем с ушками', 'лучший шлем за конфеты', 520,
+      { hp: 3, dodge: 0.07, speed: 0.03 }, drawKnightHelm, { a: '#ffd7f0', b: '#a8508a', c: '#c9a6ff' }),
+    item('helmet', 'candycrown', 'Леденцовая тиара', 'сладкая, но крепкая', 0,
+      { hp: 4, dodge: 0.10 }, drawCrown, { a: '#c9f0ff', b: '#4e93b5', c: '#ff9fc4' }, 8),
+    item('helmet', 'starcrown', 'Звёздная тиара', 'новая легенда лавки', 0,
+      { hp: 5, dodge: 0.12 }, drawStarCrown, { a: '#ffd7f0', b: '#a8508a', c: '#fff6b0' }, 10),
+
+    item('body', 'dress', 'Бальное платье', 'лучшая защита за конфеты', 580,
+      { hp: 3, dodge: 0.12 }, drawCape, { a: '#c9a6ff', b: '#6a55c9', c: '#ffd7f0' }),
+    item('body', 'candyarmor', 'Зефирная броня', 'мягкая, а удары отскакивают', 0,
+      { hp: 4, dodge: 0.16 }, drawPlate, { a: '#fff0f5', b: '#d45d8e' }, 10),
+    item('body', 'wings', 'Крылья феи', 'от них удары пролетают мимо', 0,
+      { hp: 5, dodge: 0.18 }, drawWings, { a: '#ffe6f7', b: '#c23a9e', c: '#c9a6ff' }, 12),
+
+    item('boots', 'ballet', 'Балетки', 'лучшие ножки за конфеты', 480,
+      { speed: 0.20, dodge: 0.05 }, drawSneakers, { a: '#ffb3d1', b: '#a8508a', c: '#fff0f5' }),
+    item('boots', 'rockets', 'Облачные пружинки', 'быстрее ветра', 0,
+      { speed: 0.28, dodge: 0.09 }, drawSprings, { a: '#e7e2ff', b: '#6a55c9', c: '#ffdf5e' }, 9),
+    item('boots', 'wingboots', 'Крылатые сапожки', 'бегут, не касаясь земли', 0,
+      { speed: 0.32, dodge: 0.10 }, drawWingBoots, { a: '#ff9fc4', b: '#a8508a', c: '#fff6b0' }, 11),
+
+    item('gloves', 'iron', 'Когтистые лапки', 'лучшие перчатки за конфеты', 750,
+      { damage: 0.14, atkSpeed: 0.08, hp: 1 }, drawBattleGlove, { a: '#e3e9f0', b: '#6a55c9', c: '#ff9fc4' }),
+    item('gloves', 'candyfist', 'Сахарные лапки', 'сладкий, но мощный удар', 0,
+      { damage: 0.27, atkSpeed: 0.17, crit: 0.16 }, drawChampGlove, { a: '#ffb3d1', b: '#a8284f' }, 20),
+    item('gloves', 'crystal', 'Хрустальные лапки', 'сильнее не бывает', 0,
+      { damage: 0.30, atkSpeed: 0.18, crit: 0.18 }, drawCrystalGlove, { a: '#f0e6ff', b: '#6a55c9', c: '#b8f0ff' }, 22)
   ];
 
   var Equipment = {
