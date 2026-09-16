@@ -80,8 +80,8 @@
   var MOVE_CHARGED = 3;
   var MOVE_LUNGE = 4;
   var MOVES = COMBO.concat([
-    { time: 0.40, rest: 0.26, arc: Math.PI * 2, way: 1, radiusK: 1.45, lunge: 60, damage: 3, knockback: 480,
-      spin: true, stun: 1.2, breakShield: true },
+    { time: 0.40, rest: 1.5, arc: Math.PI * 2, way: 1, radiusK: 1.3, lunge: 60, damage: 2, knockback: 320,
+      spin: true, stun: 0.3, breakShield: true },
     { time: 0.20, rest: 0.16, arc: 0.8, way: 1, radiusK: 1.5, lunge: 330, damage: 2, knockback: 460 }
   ]);
 
@@ -93,7 +93,7 @@
 
   /* Заряд удара */
   var CHARGE_START = 0.28;   // сколько держать кнопку, прежде чем начнётся заряд
-  var CHARGE_TIME = 0.6;     // сколько заряжать до полной силы
+  var CHARGE_TIME = 0.85;    // сколько заряжать до полной силы
 
   /** Зажата ли хоть одна клавиша действия. */
   function held(keys, list) {
