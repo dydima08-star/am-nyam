@@ -82,9 +82,46 @@
           }
           img.src = sprites[name].src;
         });
-      }));
-    }
+      })).then(buildDerived);
+    },
+
+    /**
+     * Наряды-надстройки: готовый спрайт героя плюс дорисованные поверх вещи
+     * (шапка, корона, крылышки). Регистрируются заранее (js/wardrobe.js),
+     * а после загрузки картинок склеиваются в обычный спрайт — поэтому дальше
+     * их рисуют, анимируют и передают по сети так же, как присланные картинки.
+     *
+     * def: { from: 'omnom_base', title, padX, padTop,
+     *        back(c), front(c) }  — рисуют в координатах исходной картинки
+     */
+    derived: {},
+    derive: function (name, def) { Assets.derived[name] = def; }
   };
+
+  function buildDerived() {
+    Object.keys(Assets.derived).forEach(function (name) {
+      var def = Assets.derived[name];
+      var src = sprites[def.from];
+      var img = Assets.images[def.from];
+      if (!src || !img) return;
+      var padX = def.padX || 0, padTop = def.padTop || 0;
+      var cv = document.createElement('canvas');
+      cv.width = src.w + padX * 2;
+      cv.height = src.h + padTop;
+      var c = cv.getContext('2d');
+      c.translate(padX, padTop);
+      c.lineJoin = 'round';
+      c.lineCap = 'round';
+      if (def.back) { c.save(); def.back(c); c.restore(); }
+      c.drawImage(img, 0, 0, src.w, src.h);
+      if (def.front) { c.save(); def.front(c); c.restore(); }
+      sprites[name] = {
+        hero: src.hero, costume: name.slice(src.hero.length + 1), title: def.title,
+        w: cv.width, h: cv.height, ax: src.ax + padX, ay: src.ay + padTop
+      };
+      Assets.images[name] = cv;
+    });
+  }
 
   window.Assets = Assets;
 })();

@@ -52,6 +52,9 @@
     { id: 'mat', name: 'Коврик у входа', price: 80,
       about: 'на нём приятно вытирать лапки', good: 'конфет падает на 8% больше', draw: drawMat },
 
+    { id: 'plant', name: 'Цветок в горшке', price: 120,
+      about: 'тянется к солнышку во все стороны', good: 'размах взмаха +5%', draw: drawPlant },
+
     { id: 'window', name: 'Окно на луг', price: 160,
       about: 'солнышко и свежий воздух', good: 'оба бегают на 4% быстрее', draw: drawWindow },
 
@@ -61,14 +64,29 @@
     { id: 'piggy', name: 'Копилка-свинка', price: 240,
       about: 'копит сама, пока вас нет', good: 'ещё +12% конфет', draw: drawPiggy },
 
+    { id: 'armchair', name: 'Уютное кресло', price: 260,
+      about: 'посидел — и снова полон сил', good: '+1 сердечко обоим', draw: drawArmchair },
+
     { id: 'stove', name: 'Тёплая печка', price: 280,
       about: 'еда не остывает до утра', good: 'ужин держится два забега', draw: drawStove },
+
+    { id: 'mirror', name: 'Зеркальце', price: 300,
+      about: 'перед ним репетируют хитрые удары', good: 'шанс крита +5%', draw: drawMirror },
 
     { id: 'bed', name: 'Мягкая кроватка', price: 320,
       about: 'с подушкой-облачком', good: 'сон даёт +2 сердечка вместо одного', draw: drawBed },
 
+    { id: 'gramophone', name: 'Патефон', price: 380,
+      about: 'под весёлую музыку бьётся бодрее', good: 'урон +6%', draw: drawGramophone },
+
     { id: 'shelf', name: 'Полка с книжками', price: 420,
       about: 'сказки про храбрых слизнеборцев', good: 'карточку в забеге предлагают дважды', draw: drawShelf },
+
+    { id: 'aquarium', name: 'Аквариум с рыбками', price: 480,
+      about: 'смотришь на рыбок — и копишь задор', good: 'суперприём копится на 15% быстрее', draw: drawAquarium },
+
+    { id: 'candyjar', name: 'Банка конфет', price: 550,
+      about: 'конфеты сами знают дорогу домой', good: 'конфеты слетаются на 30% дальше', draw: drawCandyJar },
 
     { id: 'clock', name: 'Часы с кукушкой', dust: 3,
       about: 'кукушка подгоняет', good: 'удары быстрее на 5%', draw: drawClock },
@@ -77,7 +95,13 @@
       about: 'точильный камень внутри', good: 'прокачка оружия дешевле на 20%', draw: drawChest },
 
     { id: 'lamp', name: 'Люстра-звёздочка', dust: 5,
-      about: 'кусочек звёздного неба дома', good: 'звёздная пыль падает в полтора раза чаще', draw: drawLamp }
+      about: 'кусочек звёздного неба дома', good: 'звёздная пыль падает в полтора раза чаще', draw: drawLamp },
+
+    { id: 'telescope', name: 'Телескоп', dust: 6,
+      about: 'видно, куда падают звёздочки', good: 'звёздная пыль падает ещё на 30% чаще', draw: drawTelescope },
+
+    { id: 'trophy', name: 'Кубок героев', dust: 8,
+      about: 'за всех побеждённых боссов', good: 'суперприём сильнее на 20%', draw: drawTrophy }
   ];
 
   var Home = {
@@ -125,8 +149,8 @@
       return (Home.has('mat') ? 0.08 : 0) + (Home.has('piggy') ? 0.12 : 0);
     },
 
-    /** Во сколько раз чаще падает звёздная пыль (люстра). */
-    dustMul: function () { return Home.has('lamp') ? 1.5 : 1; },
+    /** Во сколько раз чаще падает звёздная пыль (люстра и телескоп). */
+    dustMul: function () { return (Home.has('lamp') ? 1.5 : 1) * (Home.has('telescope') ? 1.3 : 1); },
 
     /** Сколько раз за забег предлагают карточку (полка с книжками). */
     offers: function () { return Home.has('shelf') ? 2 : 1; },
@@ -187,6 +211,13 @@
       if (Home.rested) p.maxHp += Home.has('bed') ? 2 : 1;
       if (Home.has('window')) p.speed *= 1.04;
       if (Home.has('clock')) p.atkSpeed *= 1.05;
+      if (Home.has('plant')) p.swingRadius *= 1.05;
+      if (Home.has('armchair')) p.maxHp += 1;
+      if (Home.has('mirror')) p.crit += 0.05;
+      if (Home.has('gramophone')) p.damageMul *= 1.06;
+      if (Home.has('aquarium')) p.superFill *= 1.15;
+      if (Home.has('candyjar')) p.magnet *= 1.3;
+      if (Home.has('trophy')) p.superMul *= 1.2;
     },
 
     /** Мир пройден — дома снова можно поспать. */
@@ -646,6 +677,15 @@
     if (Home.has('shelf')) atRoom(c, 168, wallY, 1.35, drawShelf);
     if (Home.has('clock')) atRoom(c, 470, wallY * 0.85, 1.25, drawClock);
     if (Home.has('lamp')) atRoom(c, 566, wallY * 0.45 + Math.sin(t * 1.4) * 3, 1.5, drawLamp);
+    if (Home.has('mirror')) atRoom(c, 292, wallY, 1.2, drawMirror);
+    if (Home.has('trophy')) atRoom(c, 638, wallY, 1.1, drawTrophy);
+
+    // --- вещи у стены: стоят дальше, поэтому их перекрывает всё, что ближе ---
+    var backY = FLOOR + 34;                   // нижний край, у всех вещей низ на y=20
+    if (Home.has('gramophone')) atRoom(c, 236, backY - 20 * 1.3, 1.3, drawGramophone);
+    if (Home.has('aquarium')) atRoom(c, 362, backY - 20 * 1.35, 1.35, drawAquarium);
+    if (Home.has('armchair')) atRoom(c, 582, backY - 20 * 1.5, 1.5, drawArmchair);
+    if (Home.has('telescope')) atRoom(c, 904, backY - 20 * 1.4, 1.4, drawTelescope);
 
     // --- вещи на полу ---
     if (Home.has('mat')) atRoom(c, 448, BASE + 14, 2.3, drawMat);
@@ -655,6 +695,8 @@
     if (Home.has('piggy')) atRoom(c, 610, BASE - 14, 1.5, drawPiggy);
     if (Home.has('bed')) atRoom(c, 828, BASE - 22, 2.1, drawBed);
     atRoom(c, 700, BASE - 44, 1.5, drawCloset);      // шкаф с нарядами стоит всегда
+    if (Home.has('candyjar')) atRoom(c, 700, BASE - 104 - 20 * 1.1, 1.1, drawCandyJar);   // на шкафу
+    if (Home.has('plant')) atRoom(c, 934, BASE - 20 * 1.4, 1.4, drawPlant);
 
     // Ужин на столике — видно, что приготовили
     ['omnom', 'cat'].forEach(function (hero, n) {
@@ -1011,6 +1053,162 @@
     c.restore();
     star5(c, -22, -6, 5, '#ffffff');
     star5(c, 23, 4, 4, '#ffffff');
+  }
+
+  /* --- вещи второй очереди: у напольных низ на y=20 --- */
+  function drawPlant(c) {
+    [[-0.7, 26], [0, 32], [0.7, 26], [-0.35, 22], [0.35, 22]].forEach(function (l) {
+      c.save(); c.rotate(l[0]);
+      c.beginPath(); c.ellipse(0, -l[1] * 0.6, 6, l[1] * 0.55, 0, 0, Math.PI * 2);
+      c.fillStyle = '#7ccf5e'; c.fill();
+      c.lineWidth = 2.5; c.strokeStyle = '#3f8a35'; c.stroke();
+      c.restore();
+    });
+    c.fillStyle = '#ff8fb4';                         // цветочек сверху
+    for (var i = 0; i < 5; i++) {
+      var a = i * Math.PI * 2 / 5;
+      c.beginPath(); c.arc(Math.cos(a) * 5, -34 + Math.sin(a) * 5, 4.5, 0, Math.PI * 2); c.fill();
+    }
+    c.fillStyle = '#ffdf5e';
+    c.beginPath(); c.arc(0, -34, 3.5, 0, Math.PI * 2); c.fill();
+    c.beginPath();                                   // горшок
+    c.moveTo(-16, 0); c.lineTo(16, 0); c.lineTo(11, 20); c.lineTo(-11, 20);
+    c.closePath();
+    c.fillStyle = '#e07a4f'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = '#8a4526'; c.stroke();
+    box(c, -18, -4, 36, 8, 3, '#f09a6a', '#8a4526');
+    heart(c, 0, 12, 0.8, '#ffe0cd');
+  }
+
+  function drawArmchair(c) {
+    box(c, -26, -30, 52, 36, 12, '#ff9fc4', '#b84a78');   // спинка
+    box(c, -24, -2, 48, 16, 6, '#ffb4d2', '#b84a78');     // сиденье
+    box(c, -32, -12, 12, 28, 6, '#ff8fb4', '#b84a78');    // подлокотники
+    box(c, 20, -12, 12, 28, 6, '#ff8fb4', '#b84a78');
+    c.fillStyle = '#8a4526';
+    c.fillRect(-26, 16, 5, 4);
+    c.fillRect(21, 16, 5, 4);
+    box(c, -10, -22, 20, 16, 6, '#fff4e2', '#d9a06a');    // подушечка
+    heart(c, 0, -14, 0.9, '#ff6f9d');
+  }
+
+  function drawMirror(c) {
+    c.beginPath(); c.ellipse(0, 0, 20, 27, 0, 0, Math.PI * 2);
+    c.fillStyle = '#ffd23c'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = '#a9762f'; c.stroke();
+    c.beginPath(); c.ellipse(0, 0, 14, 21, 0, 0, Math.PI * 2);
+    c.fillStyle = '#d6f1ff'; c.fill();
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-6, -10); c.lineTo(2, -16); c.stroke();
+    c.beginPath(); c.moveTo(-6, -3); c.lineTo(6, -12); c.stroke();
+    heart(c, 0, -30, 1.1, '#ff6f9d');
+  }
+
+  function drawGramophone(c) {
+    var t = Game.time || 0;
+    box(c, -20, 2, 40, 18, 4, '#c89a6a', '#7a4b26');      // ящик
+    c.beginPath(); c.ellipse(0, 2, 17, 5, 0, 0, Math.PI * 2);   // пластинка
+    c.fillStyle = '#3a2b2e'; c.fill();
+    c.fillStyle = '#ff6f9d';
+    c.beginPath(); c.ellipse(0, 2, 5, 2, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#a9762f'; c.lineWidth = 3; c.lineCap = 'round';   // трубка
+    c.beginPath(); c.moveTo(12, 2); c.quadraticCurveTo(14, -12, 2, -16); c.stroke();
+    c.beginPath();                                    // раструб
+    c.moveTo(2, -12); c.lineTo(-10, -40); c.quadraticCurveTo(-26, -40, -30, -24);
+    c.closePath();
+    c.fillStyle = '#ffd23c'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = '#a9762f'; c.stroke();
+    c.fillStyle = '#8a5ad0';                          // ноты улетают вверх
+    for (var i = 0; i < 2; i++) {
+      var k = (t * 0.5 + i * 0.5) % 1;
+      c.save();
+      c.globalAlpha = 1 - k;
+      c.translate(-24 - k * 10 + i * 8, -40 - k * 22);
+      c.beginPath(); c.ellipse(0, 0, 3.5, 2.6, -0.4, 0, Math.PI * 2); c.fill();
+      c.fillRect(2.5, -11, 1.8, 11);
+      c.restore();
+    }
+  }
+
+  function drawAquarium(c) {
+    var t = Game.time || 0;
+    c.fillStyle = '#8a6a4a';                          // тумбочка
+    c.fillRect(-22, 8, 6, 12);
+    c.fillRect(16, 8, 6, 12);
+    box(c, -28, 2, 56, 8, 3, '#c89a6a', '#8a6a4a');
+    box(c, -26, -32, 52, 34, 6, 'rgba(143, 214, 255, 0.85)', '#5b8fb0');
+    c.save();
+    Game.roundRect(c, -26, -32, 52, 34, 6); c.clip();
+    c.fillStyle = '#ffe0a8'; c.fillRect(-26, -4, 52, 8);          // песочек
+    c.strokeStyle = '#5fae4a'; c.lineWidth = 3; c.lineCap = 'round';   // водоросли
+    c.beginPath(); c.moveTo(-16, 0); c.quadraticCurveTo(-20 + Math.sin(t * 2) * 3, -12, -15, -22); c.stroke();
+    c.beginPath(); c.moveTo(18, 0); c.quadraticCurveTo(14 + Math.sin(t * 2 + 1) * 3, -8, 19, -16); c.stroke();
+    [['#ff9a3c', -20, 1], ['#ff6f9d', -10, -1]].forEach(function (f, i) {
+      var x = Math.sin(t * 0.8 + i * 2) * 14;
+      var dir = Math.cos(t * 0.8 + i * 2) >= 0 ? 1 : -1;
+      c.save(); c.translate(x, f[1] + Math.sin(t * 2 + i) * 2); c.scale(dir, 1);
+      c.beginPath(); c.ellipse(0, 0, 6, 4, 0, 0, Math.PI * 2);
+      c.fillStyle = f[0]; c.fill();
+      c.beginPath(); c.moveTo(-5, 0); c.lineTo(-10, -4); c.lineTo(-10, 4); c.closePath(); c.fill();
+      c.fillStyle = '#3a2b2e';
+      c.beginPath(); c.arc(3, -1, 1.2, 0, Math.PI * 2); c.fill();
+      c.restore();
+    });
+    c.fillStyle = 'rgba(255,255,255,0.8)';            // пузырьки
+    for (var b = 0; b < 3; b++) {
+      var k = (t * 0.6 + b / 3) % 1;
+      c.beginPath(); c.arc(8 + b * 3, -2 - k * 28, 1.8, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+
+  function drawCandyJar(c) {
+    box(c, -18, -18, 36, 38, 10, 'rgba(230, 246, 255, 0.9)', '#8fb4cc');   // стекло
+    var cols = ['#ff6f9d', '#ffdf5e', '#8fd6ff', '#a8e6c4', '#c9a6ff', '#ff9a3c'];
+    [[-9, 12], [0, 13], [9, 12], [-5, 5], [5, 5], [-10, -2], [1, -3], [10, -1]].forEach(function (p, i) {
+      c.beginPath(); c.arc(p[0], p[1], 4.2, 0, Math.PI * 2);
+      c.fillStyle = cols[i % cols.length]; c.fill();
+    });
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-12, -10); c.lineTo(-12, 4); c.stroke();
+    box(c, -14, -26, 28, 9, 4, '#ff8fb4', '#b84a78');    // крышка
+    c.fillStyle = '#b84a78';
+    c.beginPath(); c.arc(0, -28, 4, 0, Math.PI * 2); c.fill();
+  }
+
+  function drawTelescope(c) {
+    c.strokeStyle = '#8a6a4a'; c.lineWidth = 4; c.lineCap = 'round';   // тренога
+    c.beginPath();
+    c.moveTo(0, -6); c.lineTo(-14, 20);
+    c.moveTo(0, -6); c.lineTo(14, 20);
+    c.moveTo(0, -6); c.lineTo(0, 20);
+    c.stroke();
+    c.save();
+    c.translate(0, -8); c.rotate(-0.55);              // труба смотрит в небо
+    box(c, -26, -7, 40, 14, 5, '#6a55c9', '#3f2f8a');
+    box(c, 12, -9, 16, 18, 4, '#ffd23c', '#a9762f');
+    box(c, -32, -4, 8, 8, 3, '#ffd23c', '#a9762f');
+    c.restore();
+    star5(c, 26, -36, 6, '#ffdf5e');
+    star5(c, 12, -44, 3.5, '#ffffff');
+  }
+
+  function drawTrophy(c) {
+    c.strokeStyle = '#c99a13'; c.lineWidth = 4;       // ручки
+    c.beginPath(); c.arc(-18, -12, 7, Math.PI * 0.5, Math.PI * 1.5); c.stroke();
+    c.beginPath(); c.arc(18, -12, 7, -Math.PI * 0.5, Math.PI * 0.5); c.stroke();
+    c.beginPath();                                    // чаша
+    c.moveTo(-18, -22); c.lineTo(18, -22);
+    c.quadraticCurveTo(18, 4, 0, 6);
+    c.quadraticCurveTo(-18, 4, -18, -22);
+    c.closePath();
+    c.fillStyle = '#ffd23c'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = '#a9762f'; c.stroke();
+    c.fillStyle = '#e0a800';
+    c.fillRect(-3, 6, 6, 8);
+    box(c, -14, 14, 28, 8, 3, '#c89a6a', '#7a4b26');   // подставка
+    star5(c, 0, -10, 8, '#ffffff');
+    star5(c, -22, -30, 4, '#fff3b0');
   }
 
   window.Home = Home;
