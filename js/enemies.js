@@ -259,6 +259,13 @@
       return e;
     },
 
+    /** Оглушить слизня: стоит, не стреляет и не разгоняется. Боссов не берёт. */
+    stun: function (e, seconds) {
+      if (e.isBoss || e.dead) return;
+      e.stun = Math.max(e.stun || 0, seconds);
+      e.charging = 0;
+    },
+
     /** Урон слизню. Вызывается из combat.js. Возвращает true, если урон прошёл. */
     hurt: function (e, dmg, fromX, fromY, knockback) {
       // Призрак неуязвим, пока полупрозрачный
@@ -522,6 +529,15 @@
 
     var target = nearestPlayer(e.x, e.y);
 
+    // Оглушённый слизень ничего не делает, только приходит в себя
+    var dazed = e.stun > 0;
+    if (dazed) {
+      e.stun = Math.max(0, e.stun - dt);
+      e.walkVx -= e.walkVx * Math.min(1, dt * 8);
+      e.walkVy -= e.walkVy * Math.min(1, dt * 8);
+      target = null;
+    }
+
     // Щит восстанавливается, если слизня давно не били
     if (e.maxShield && e.shield < e.maxShield) {
       e.shieldTimer -= dt;
@@ -540,7 +556,7 @@
     }
 
     // Пряник лечит соседей
-    if (e.def.heal && e.spawnIn <= 0) {
+    if (e.def.heal && e.spawnIn <= 0 && !dazed) {
       e.healTimer -= dt;
       if (e.healTimer <= 0) {
         e.healTimer = e.def.heal.every;
@@ -559,7 +575,7 @@
     }
 
     // Осьминожек и тень зовут подмогу
-    if (e.def.summon && e.spawnIn <= 0 && Enemies.list.length < 26) {
+    if (e.def.summon && e.spawnIn <= 0 && !dazed && Enemies.list.length < 26) {
       e.summonTimer -= dt;
       if (e.summonTimer <= 0) {
         e.summonTimer = e.def.summon.every;
@@ -1079,6 +1095,15 @@
     c.beginPath();
     c.arc(0, -h * 0.5, r * 0.18, 0.15 * Math.PI, 0.85 * Math.PI);
     c.stroke();
+
+    // Оглушён — над головой кружат звёздочки
+    if (e.stun > 0 && e.dieT == null) {
+      c.fillStyle = '#ffdf5e';
+      for (var si = 0; si < 3; si++) {
+        var sa = Game.time * 6 + si * Math.PI * 2 / 3;
+        starShape(c, Math.cos(sa) * w * 0.7, -h * 1.9 + Math.sin(sa) * 5, 6);
+      }
+    }
 
     c.restore();
 

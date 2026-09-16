@@ -43,7 +43,7 @@
     lastError: '',
 
     // Герой напарника (у хозяина): где стоит, куда смотрит, сколько ударов ждёт
-    remoteInput: { px: null, py: null, vx: 0, vy: 0, f: 1, ax: 0, ay: 0, atk: 0, atkAge: 0 },
+    remoteInput: { px: null, py: null, vx: 0, vy: 0, f: 1, ax: 0, ay: 0, atk: 0, atkAge: 0, mv: 0, dh: 0, ch: 0 },
 
     isHost: function () { return Online.active && Online.role === 'host'; },
     isGuest: function () { return Online.active && Online.role === 'guest'; },
@@ -66,6 +66,9 @@
   var inputSeq = 0, lastInput = 0;  // герой гостя: у гостя / у хозяина
   var attackCount = 0;              // у гостя: сколько раз всего ударил
   var lastAttack = 0;               // у хозяина: сколько из них уже учтено
+  var lastMove = 0;                 // у гостя: номер последнего удара (заряженный, выпад…)
+  var superCount = 0;               // у гостя: сколько раз просил суперприём
+  var lastSuper = 0;                // у хозяина: сколько из этих просьб уже выполнено
   var kick = { x: 0, y: 0 };        // у хозяина: толчок, который ждёт героя гостя
   var shopHold = 0;                 // сколько перерыв уже ждёт лавку
 
@@ -607,7 +610,10 @@
   };
 
   /** Гость ударил (вызывает players.js). */
-  Online.noteAttack = function () { attackCount++; };
+  Online.noteAttack = function (move) { attackCount++; lastMove = move | 0; };
+
+  /** Гость нажал суперприём — выполнит хозяин. */
+  Online.noteSuper = function () { superCount++; };
 
   function takeInput(m) {
     if ((m.q | 0) <= lastInput) return;          // устаревшая посылка
@@ -617,6 +623,15 @@
     ri.vx = m.vx || 0; ri.vy = m.vy || 0;
     ri.f = m.f || ri.f;
     ri.ax = m.ax || 0; ri.ay = m.ay || 0;
+    ri.mv = m.mv | 0;
+    ri.dh = m.dh ? 1 : 0;
+    ri.ch = m.ch || 0;
+    var su = m.su | 0;
+    if (su > lastSuper) {
+      lastSuper = su;
+      var mate = Online.matePlayer();
+      if (mate && Players.list.indexOf(mate) >= 0) Combat.startSuper(mate);
+    }
     var an = m.an | 0;
     if (an > lastAttack) {
       // Даже если посылка с ударом потерялась, следующая несёт общий счёт
@@ -647,10 +662,7 @@
       var reach = p.swingRadius * step.radiusK + e.r + 90;
       if (Math.hypot(e.x - p.x, e.y - p.y) > reach) continue;
 
-      var crit = !!h.c && p.crit > 0;
-      var dmg = Math.round(step.damage * (p.damageMul || 1) * (crit ? 2 : 1) * 10) / 10;
-      var knock = step.knockback * (p.knockMul || 1) * (crit ? 1.4 : 1);
-      if (Enemies.hurt(e, dmg, p.x, p.y, knock)) Combat.hitFeedback(p, e, dmg, crit, step.spin);
+      Combat.strike(p, e, h.k | 0, !!h.c && p.crit > 0);
     }
   }
 
@@ -680,6 +692,12 @@
         cs: p.costume || 'base',
         wp: p.weaponId, wl: p.weaponLevel || 0,
         ax: +(p.aimX || 0).toFixed(2), ay: +(p.aimY || 0).toFixed(2),
+        // Рывок, заряд, серия и шкала суперприёма
+        dh: p.dashTimer > 0 ? 1 : 0,
+        ch: +(p.chargeT || 0).toFixed(2),
+        sk: p.streak | 0,
+        sm: +(p.superMeter || 0).toFixed(3),
+        su: p.superUsed | 0, sc: p.superCharges | 0,
         // Прогресс взмаха (0…1) и его длительность — гость доигрывает взмах сам
         sw: p.swing && p.swing.time ? {
           t: +Math.max(0, Math.min(1, 1 - (p.attackTimer || 0) / p.swing.time)).toFixed(2),
@@ -718,6 +736,7 @@
         vx: Math.round(e.vx || 0)
       };
       if (e.shield) o.sh = e.shield;
+      if (e.stun > 0) o.st = +e.stun.toFixed(1);
       if (e.ghostPhase != null) o.gp = +e.ghostPhase.toFixed(2);
       if (e.isBoss) {
         o.b = 1;
@@ -788,6 +807,11 @@
         Weapons.equip(p, s.wp, s.wl);
       }
       p.costume = s.cs;
+      p.streak = s.sk | 0;
+      p.superUsed = s.su | 0;
+      p.superCharges = s.sc | 0;
+      // Свою просьбу о суперприёме гость уже показал: шкала не «отрастает» назад
+      if (!(p === me && p.superAsked && Date.now() - p.superAsked < PREDICT_WAIT)) p.superMeter = s.sm || 0;
 
       if (p === me) {
         // Свой герой: двигаем сами, от хозяина берём только то, что он решает
@@ -812,6 +836,8 @@
       p.aimX = s.ax; p.aimY = s.ay;
       p.vx = s.vx || 0;
       p.vy = s.vy || 0;
+      p.dashTimer = s.dh ? 0.1 : 0;
+      p.chargeT = s.ch || 0;
       // Рисование берёт прогресс взмаха из attackTimer / swing.time
       if (s.sw) {
         var tm = s.sw.tm || 0.25;
@@ -862,6 +888,7 @@
       e.squash = Math.min(s.sq, e.squash || 1);
       e.spawnIn = s.sp; e.vx = s.vx;
       e.shield = s.sh || 0; e.maxShield = s.sh || 0;
+      e.stun = s.st || 0;
       e.ghostPhase = s.gp;
       e.isBoss = !!s.b;
       if (s.b) {
@@ -965,6 +992,12 @@
       case 'text':
         Combat.floatText(e.x, e.y, e.v, '#fff2a8');
         break;
+      case 'super':                                // суперприём начался
+        Combat.superFx(e.v, e.x, e.y);
+        break;
+      case 'star':                                 // звезда звездопада
+        Combat.fallingStar(e.x, e.y, e.dl || 0, null);
+        break;
     }
   }
 
@@ -1009,9 +1042,11 @@
       var r = Combat.rollHit(p, s.damage);
       pendingHits.push({ n: ++hitSeq, i: e.netId, k: s.index | 0, c: r.crit ? 1 : 0 });
 
-      // Щит и призрачность решает хозяин — он и пришлёт «щит!» / «сквозь!»
+      // Щит и призрачность решает хозяин — он и пришлёт «щит!» / «сквозь!».
+      // Заряженный удар щит сносит, поэтому его урон показываем сразу
+      var move = Players.combo[s.index | 0] || Players.combo[0];
       var ghostly = e.def.ghost && (0.5 + Math.sin((e.ghostPhase || 0) * 1.1) * 0.5) < 0.45;
-      if (e.shield > 0 || ghostly) { e.flash = 0.12; continue; }
+      if ((e.shield > 0 && !move.breakShield) || ghostly) { e.flash = 0.12; continue; }
 
       e.flash = 0.14;
       e.squash = 0.72;
@@ -1078,8 +1113,12 @@
           vx: Math.round(me.vx), vy: Math.round(me.vy),
           f: me.facing,
           ax: +(me.aimX || 0).toFixed(2), ay: +(me.aimY || 0).toFixed(2),
-          an: attackCount
+          an: attackCount,
+          mv: lastMove,
+          su: superCount
         };
+        if (me.dashTimer > 0) inp.dh = 1;
+        if (me.chargeT > 0) inp.ch = +me.chargeT.toFixed(2);
         if (pendingHits.length) {
           inp.h = pendingHits;
           sentHit = pendingHits[pendingHits.length - 1].n;
@@ -1427,6 +1466,9 @@
       lastInput = 0;
       attackCount = 0;
       lastAttack = 0;
+      lastMove = 0;
+      superCount = 0;
+      lastSuper = 0;
       fxSeq = 0; lastFx = 0;
       fxQueue = []; fxRecent = [];
       hitSeq = 0; lastHit = 0; sentHit = 0;

@@ -4,7 +4,8 @@
  * Как это работает:
  *   • левая часть экрана — джойстик: прижимаете палец где угодно, и там же
  *     появляется кружок; ведёте — герой бежит;
- *   • правая часть — удар: тап бьёт один раз, зажатый палец бьёт очередями;
+ *   • правая часть — удар: тап бьёт один раз, зажатый палец копит заряженный удар;
+ *   • рядом с кнопкой удара — кнопки рывка (»») и суперприёма (★);
  *   • в режиме «Двое» экран делится пополам: у каждого свой джойстик и своя
  *     половина для ударов (удобно на планшете).
  *
@@ -141,8 +142,19 @@
         button: { x: Game.W * 0.63, y: Game.H - 96 }
       });
     }
+
+    // Кнопки рывка и суперприёма — рядом с кнопкой удара, чтобы доставал большой палец
+    Touch.zones.forEach(function (z) {
+      var side = z.button.x > Game.W / 2 ? -1 : 1;     // в сторону центра экрана
+      z.dashBtn = { x: z.button.x + side * 112, y: z.button.y + 40, r: 36 };
+      z.superBtn = { x: z.button.x + side * 26, y: z.button.y - 118, r: 36 };
+    });
   }
   Touch.buildZones = buildZones;
+
+  function inButton(b, pos) {
+    return !!b && Math.hypot(pos.x - b.x, pos.y - b.y) < b.r + 14;   // с запасом для пальца
+  }
 
   function zoneAt(lx) {
     for (var i = 0; i < Touch.zones.length; i++) {
@@ -160,6 +172,19 @@
     if (Game.state !== 'playing') return;     // в меню работают обычные кнопки
     if (window.Shop && Shop.inGame) return;   // в лавке посреди забега — тоже кнопки
     var pos = toLogical(e.clientX, e.clientY);
+
+    // Сначала малые кнопки: рывок и суперприём (срабатывают один раз на касание)
+    for (var i = 0; i < Touch.zones.length; i++) {
+      var z = Touch.zones[i];
+      var kind = inButton(z.dashBtn, pos) ? 'dash' : (inButton(z.superBtn, pos) ? 'super' : null);
+      if (!kind) continue;
+      e.preventDefault();
+      Touch.pointers[e.pointerId] = { kind: kind, zone: z };
+      if (kind === 'dash') z.dashTap = true;
+      else z.superTap = true;
+      return;
+    }
+
     var hit = zoneAt(pos.x);
     if (!hit) return;
 
@@ -204,6 +229,15 @@
   Touch.inputFor = function (p) {
     if (!Touch.active) return null;
     var res = null;
+
+    // Нажатия малых кнопок отдаём один раз
+    for (var zi = 0; zi < Touch.zones.length; zi++) {
+      var z = Touch.zones[zi];
+      if (z.player !== p || !(z.dashTap || z.superTap)) continue;
+      res = { dx: 0, dy: 0, attack: false, dash: !!z.dashTap, super: !!z.superTap };
+      z.dashTap = z.superTap = false;
+    }
+
     for (var id in Touch.pointers) {
       var t = Touch.pointers[id];
       if (t.zone.player !== p) continue;
@@ -211,7 +245,7 @@
 
       if (t.kind === 'fire') {
         res.attack = true;
-      } else {
+      } else if (t.kind === 'stick') {
         var dx = t.x - t.ox, dy = t.y - t.oy;
         var d = Math.hypot(dx, dy);
         if (d > 8) {                       // мёртвая зона, чтобы не дёргался
@@ -239,6 +273,8 @@
         if (t.zone === z && t.kind === 'fire') pressed = true;
       }
       drawFireButton(c, z, pressed);
+      drawDashButton(c, z);
+      drawSuperButton(c, z);
     }
 
     // Джойстики — там, где сейчас палец
@@ -299,6 +335,71 @@
     c.fillStyle = '#ffffff';
     c.beginPath();
     c.arc(b.x + r * 0.5 * Math.cos(Math.PI * 0.1), b.y + r * 0.5 * Math.sin(Math.PI * 0.1), 4.5, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  /** Кнопка рывка: пока идёт перезарядка, по кругу набирается дуга. */
+  function drawDashButton(c, z) {
+    var b = z.dashBtn, p = z.player;
+    if (!b) return;
+    var cd = p.dashCd > 0 ? p.dashCd / Players.DASH_COOLDOWN : 0;
+
+    c.save();
+    c.globalAlpha = cd ? 0.3 : 0.55;
+    c.fillStyle = p.color;
+    c.beginPath(); c.arc(b.x, b.y, b.r, 0, Math.PI * 2); c.fill();
+    c.globalAlpha = 0.9;
+    c.lineWidth = 3;
+    c.strokeStyle = '#ffffff';
+    c.beginPath();
+    c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - cd));
+    c.stroke();
+
+    // Значок »
+    c.lineWidth = 4.5;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    for (var i = 0; i < 2; i++) {
+      var ox = b.x - 8 + i * 12;
+      c.beginPath();
+      c.moveTo(ox - 5, b.y - 10); c.lineTo(ox + 5, b.y); c.lineTo(ox - 5, b.y + 10);
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  /** Кнопка суперприёма: шкала по кругу, готовая — сияет. */
+  function drawSuperButton(c, z) {
+    var b = z.superBtn, p = z.player;
+    if (!b) return;
+    var spent = p.superUsed >= p.superCharges;
+    var ready = Players.superReady(p);
+    var k = spent ? 0 : Math.min(1, p.superMeter || 0);
+    var pulse = ready ? 1 + Math.sin(Game.time * 8) * 0.08 : 1;
+
+    c.save();
+    c.globalAlpha = ready ? 0.85 : 0.35;
+    c.fillStyle = ready ? '#ffcf3e' : p.color;
+    c.beginPath(); c.arc(b.x, b.y, b.r * pulse, 0, Math.PI * 2); c.fill();
+
+    c.globalAlpha = 0.95;
+    c.lineWidth = 4;
+    c.strokeStyle = ready ? '#ffffff' : '#fff2a8';
+    c.beginPath();
+    c.arc(b.x, b.y, b.r * pulse, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k);
+    c.stroke();
+
+    // Звезда
+    c.globalAlpha = spent ? 0.4 : 0.95;
+    c.fillStyle = '#ffffff';
+    c.beginPath();
+    for (var i = 0; i < 10; i++) {
+      var a = -Math.PI / 2 + i * Math.PI / 5;
+      var r = (i % 2 ? 7 : 16) * pulse;
+      c.lineTo(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r);
+    }
+    c.closePath();
     c.fill();
     c.restore();
   }

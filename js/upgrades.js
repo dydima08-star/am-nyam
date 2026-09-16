@@ -50,6 +50,18 @@
       apply: function (p, l) { p.swingRadius *= 1 + 0.05 * l; }
     },
     {
+      // Суперприём сам по себе — один раз за забег. Прокачка делает его сильнее,
+      // шкалу быстрее, а на 2-м и 4-м уровне даёт ещё по разу за забег
+      id: 'super', name: 'Суперприём', icon: '🌟',
+      desc: 'сильнее и быстрее шкала; на 2 и 4 ур. +1 раз за забег',
+      prices: [160, 280, 450, 700],
+      apply: function (p, l) {
+        p.superMul *= 1 + 0.2 * l;
+        p.superFill *= 1 + 0.15 * l;
+        p.superCharges += (l >= 2 ? 1 : 0) + (l >= 4 ? 1 : 0);
+      }
+    },
+    {
       id: 'wand', name: 'Волшебная палочка', icon: '✦',
       desc: 'удар ещё и стреляет звёздочкой',
       dust: [6, 10, 16],          // за звёздную пыль, а не за конфеты
@@ -137,6 +149,9 @@
       p.crit = 0;
       p.healFull = false;
       p.noSlow = false;
+      p.superMul = 1;        // суперприём: сила, скорость шкалы и сколько раз за забег
+      p.superFill = 1;
+      p.superCharges = 1;
 
       // 1) оружие из лавки
       Weapons.equip(p, Shop.equipped[hero], Shop.levelOf(hero, Shop.equipped[hero]));

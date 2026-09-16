@@ -96,6 +96,7 @@
         ['🌊', Game.endless ? ('волна' + (recordLine ? ' · ' + recordLine : '')) : 'волн пройдено',
           String(Game.endless ? Enemies.wave : Math.max(0, Enemies.wave - (Enemies.state === 'done' ? 0 : 1)))],
         ['💥', 'побеждено слизней', String(s.kills)],
+        ['🔥', 'лучшая серия ударов', String(s.bestStreak || 0)],
         ['🍬', 'конфет собрано', String(s.candyTotal)],
         ['✦', 'звёздной пыли', String(s.dust)],
         ['💔', 'пропущено ударов', String(s.damage)]
@@ -143,6 +144,9 @@
     drawHud: function (c) {
       if (Game.state !== 'playing' && Game.state !== 'paused') return;
       var W = Game.W;
+
+      // Уголки героев: шкала суперприёма, серия и рывок
+      for (var hi = 0; hi < Players.list.length; hi++) drawHeroPanel(c, Players.list[hi]);
 
       // Полоска волны: сколько слизней этой волны уже побеждено
       var label, done = 0, total = 0;
@@ -203,6 +207,70 @@
       on('result-menu', function () { Game.toMenu(); });
     }
   };
+
+  /**
+   * Панелька героя в верхнем углу (Ам Ням слева, кошечка справа):
+   * шкала суперприёма, сколько раз он ещё остался, серия и готов ли рывок.
+   */
+  function drawHeroPanel(c, p) {
+    var left = p.hero === 'omnom';
+    var w = 196, h = 50;
+    // Во время босса наверху его полоса здоровья — опускаемся под неё
+    var x = left ? 14 : Game.W - 14 - w, y = (window.Boss && Boss.current()) ? 104 : 58;
+    var touch = window.Touch && Touch.active;
+    var mine = !(window.Online && Online.active) || !p.isRemote;
+
+    var ready = Players.superReady(p);
+    var spent = p.superUsed >= p.superCharges;
+    var k = spent ? 0 : Math.min(1, p.superMeter || 0);
+
+    c.save();
+    c.globalAlpha = 0.9;
+    c.fillStyle = 'rgba(255, 250, 244, 0.88)';
+    Game.roundRect(c, x, y, w, h, 14);
+    c.fill();
+    c.globalAlpha = 1;
+
+    // Строка 1: имя и подсказка
+    c.textBaseline = 'middle';
+    c.textAlign = 'left';
+    c.font = '900 12px Nunito, "Segoe UI", sans-serif';
+    c.fillStyle = p.color;
+    c.fillText(p.name, x + 10, y + 12);
+
+    var left2 = spent ? 'суперприём был' :
+      (ready ? (mine && !touch ? '★ готов! жми Q' : '★ готов!') :
+        '★ суперприём' + (p.superCharges > 1 ? ' ×' + (p.superCharges - p.superUsed) : ''));
+    c.textAlign = 'right';
+    c.font = '800 11px Nunito, "Segoe UI", sans-serif';
+    c.fillStyle = ready ? '#d08a00' : '#8a6a6e';
+    c.fillText(left2, x + w - 10, y + 12);
+
+    // Строка 2: шкала суперприёма
+    var bx = x + 10, by = y + 22, bw = w - 20, bh = 9;
+    Game.roundRect(c, bx, by, bw, bh, bh / 2);
+    c.fillStyle = 'rgba(91, 59, 63, 0.2)';
+    c.fill();
+    if (k > 0) {
+      Game.roundRect(c, bx, by, Math.max(bh, bw * k), bh, bh / 2);
+      c.fillStyle = ready ? (Math.sin(Game.time * 8) > 0 ? '#ffcf3e' : '#ffe58a') : '#c9a6ff';
+      c.fill();
+    }
+
+    // Строка 3: серия и рывок
+    c.font = '800 11px Nunito, "Segoe UI", sans-serif';
+    c.textAlign = 'left';
+    c.fillStyle = p.streak >= 10 ? '#e0762a' : '#8a6a6e';
+    c.fillText('серия ' + (p.streak || 0), x + 10, y + 41);
+
+    // Перезарядку рывка знает только тот, кто им управляет
+    if (!mine) { c.restore(); return; }
+    c.textAlign = 'right';
+    var dashReady = !(p.dashCd > 0);
+    c.fillStyle = dashReady ? '#4e8a2a' : '#b0a0a3';
+    c.fillText(dashReady ? '» рывок готов' : '» рывок ' + p.dashCd.toFixed(1) + 'с', x + w - 10, y + 41);
+    c.restore();
+  }
 
   function on(id, fn) {
     var el = document.getElementById(id);

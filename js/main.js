@@ -14,7 +14,7 @@
   'use strict';
 
   var Game = {
-    VERSION: 15,        // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 16,        // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
@@ -531,7 +531,7 @@
     Game.state = 'playing';
     var world = Game.applyWorld(worldNum || Game.world);
 
-    Game.stats = { candy: 0, candyTotal: 0, kills: 0, dust: 0, damage: 0, time: 0 };
+    Game.stats = { candy: 0, candyTotal: 0, kills: 0, dust: 0, damage: 0, time: 0, bestStreak: 0 };
     Game.shakeAmount = 0;
     Game.bannerData = null;
     Game.defeatTimer = 0;

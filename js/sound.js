@@ -179,6 +179,30 @@
       Sound.noise(0.35, { freq: 500, to: 90, volume: 0.3, filter: 'lowpass', q: 0.7 });
       Sound.tone(120, 0.3, { type: 'sine', to: 50, volume: 0.2 });
     },
+    dash: function () {                      // рывок
+      Sound.noise(0.16, { freq: 600, to: 2400, volume: 0.12, q: 0.7 });
+    },
+    heavy: function () {                     // заряженный удар или выпад
+      Sound.noise(0.2, { freq: 900, to: 300, volume: 0.18, q: 0.8 });
+      Sound.tone(220, 0.18, { type: 'triangle', to: 110, volume: 0.16 });
+    },
+    charged: function () {                   // заряд набран
+      Sound.tone(880, 0.12, { type: 'triangle', to: 1320, volume: 0.12 });
+    },
+    streak: function () {                    // отметка серии
+      Sound.chord([784, 988], 0.2, { spread: 0.05, volume: 0.11 });
+    },
+    superready: function () {                // шкала суперприёма полная
+      Sound.chord([523, 784, 1047], 0.4, { spread: 0.08, volume: 0.13 });
+    },
+    super: function () {                     // суперприём!
+      Sound.tone(180, 0.5, { type: 'sawtooth', to: 520, volume: 0.14 });
+      Sound.chord([659, 880, 1175], 0.5, { spread: 0.06, volume: 0.13, delay: 0.1 });
+    },
+    star: function () {                      // упала звезда звездопада
+      Sound.tone(1200, 0.12, { type: 'sine', to: 500, volume: 0.1 });
+      Sound.noise(0.1, { freq: 1500, to: 400, volume: 0.1 });
+    },
     shot: function () {                      // слизень плюнул
       Sound.tone(300, 0.14, { type: 'sawtooth', to: 160, volume: 0.08 });
     },

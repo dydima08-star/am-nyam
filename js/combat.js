@@ -15,8 +15,26 @@
   var textsList = [];
 
   var puddlesList = [];      // липкие лужи от боссов
+  var supersList = [];       // идущие суперприёмы Ам Няма
+  var starsList = [];        // падающие звёзды суперприёма кошечки
+  var ringsList = [];        // расходящиеся кольца (удар суперприёма, приземление звезды)
   var PICKUP_MAGNET = 115;   // с какого расстояния конфета летит к герою
   var PICKUP_RADIUS = 26;    // на каком расстоянии считается подобранной
+
+  /* ------------------------------------------------------------------------
+   * Серия и суперприём — числа нарочно скромные, чтобы не ломать экономику.
+   * ---------------------------------------------------------------------- */
+  var STREAK_STEP = 25;      // каждые 25 попаданий без урона — маленькая награда
+  var STREAK_CANDY_MAX = 3;  // больше трёх конфет за одну отметку не выпадает
+  var SUPER_HITS = 45;       // сколько попаданий копит шкала суперприёма
+  var AMNOM_PULL = 0.55;     // сколько Ам Ням втягивает слизней перед укусом
+  var AMNOM_PULL_R = 260;    // откуда втягивает
+  var AMNOM_BITE_R = 150;    // кого задевает укус
+  var AMNOM_DAMAGE = 4;      // урон укуса (умножается на силу героя)
+  var STAR_COUNT = 8;        // сколько звёзд падает у кошечки
+  var STAR_DAMAGE = 1.6;     // урон одной звезды (умножается на силу героя)
+  var STAR_RADIUS = 58;      // кого задевает одна звезда
+  var STAR_FALL = 0.5;       // сколько звезда летит с неба
 
   var Combat = {
     drops: dropsList,
@@ -76,6 +94,7 @@
     updateVisualsOnly: function (dt) {
       updateParticles(dt);
       updateTexts(dt);
+      updateSupers(dt, false);
       for (var i = 0; i < dropsList.length; i++) dropsList[i].bob += dt * 5;
       // Снаряды летят дальше между кадрами хозяина — без рывков
       for (var j = 0; j < shotsList.length; j++) {
@@ -88,6 +107,9 @@
 
     reset: function () {
       puddlesList.length = 0;
+      supersList.length = 0;
+      starsList.length = 0;
+      ringsList.length = 0;
       particlesList.length = 0;
       dropsList.length = 0;
       shotsList.length = 0;
@@ -97,6 +119,7 @@
     update: function (dt) {
       updatePuddles(dt);
       swordHits();
+      updateSupers(dt, true);
       updateShots(dt);
       updateDrops(dt);
       updateParticles(dt);
@@ -107,11 +130,15 @@
     drawGround: function (c) {
       drawPuddles(c);
       drawDrops(c);
+      drawStarShadows(c);
+      drawSuperPull(c);
     },
 
     /* ----- то, что рисуется ПОВЕРХ героев ----- */
     drawAir: function (c) {
       drawShots(c);
+      drawStars(c);
+      drawRings(c);
       drawParticles(c);
       drawTexts(c);
     },
@@ -121,6 +148,7 @@
      * ==================================================================== */
     damagePlayer: function (p, dmg, fromX, fromY) {
       if (p.downed || p.invul > 0 || p.hp <= 0) return false;
+      if (p.dashTimer > 0) return false;   // в рывке герой неуязвим
 
       // Экипировка даёт шанс увернуться
       if (p.dodge > 0 && Math.random() < p.dodge) {
@@ -133,6 +161,9 @@
 
       p.hp -= dmg;
       p.invul = 1.2;                 // короткая неуязвимость, чтобы не съели мгновенно
+      // Пропустил удар — серия обрывается
+      if (p.streak >= 10) Combat.floatText(p.x, p.y - 96, 'серия ' + p.streak + ' прервана', '#c9a6d6');
+      p.streak = 0;
       Game.stats.damage = (Game.stats.damage || 0) + dmg;
       if (window.Sound) Sound.play('hurt');
       if (window.Online) Online.fx('hurt', p.x, p.y - 40);
@@ -311,6 +342,107 @@
       Combat.shake(spin ? 4 : (crit ? 5 : 2));
     },
 
+    /**
+     * Удар героя по слизню — общий для своих ударов и ударов гостя.
+     * move — номер удара (Players.combo), crit — был ли крит
+     * (если не указан, бросаем кубик). Возвращает { dmg, crit } или null.
+     */
+    strike: function (p, e, move, crit) {
+      var step = Players.combo[move] || Players.combo[0];
+      if (crit == null) crit = p.crit > 0 && Math.random() < p.crit;
+      var dmg = Math.round(step.damage * (p.damageMul || 1) * (crit ? 2 : 1) * 10) / 10;
+      var knock = step.knockback * (p.knockMul || 1) * (crit ? 1.4 : 1);
+
+      // Заряженный удар сносит щит целиком — и сразу бьёт
+      if (step.breakShield && e.shield > 0) {
+        e.shield = 0;
+        e.shieldTimer = 6;
+        Combat.floatText(e.x, e.y - e.r * 2.2, 'щит сломан!', '#cdeeff');
+        if (window.Online) Online.fx('text', e.x, e.y - e.r * 2.2, 'щит сломан!');
+      }
+
+      // Щит или призрачность — слизень сам покажет «щит!» / «сквозь!»
+      if (!Enemies.hurt(e, dmg, p.x, p.y, knock)) return null;
+      if (step.stun && !e.dead) Enemies.stun(e, step.stun);
+
+      Combat.hitFeedback(p, e, dmg, crit, step.spin);
+      addStreak(p);
+      Combat.chargeSuper(p);
+      return { dmg: dmg, crit: crit };
+    },
+
+    /** Попадание копит шкалу суперприёма. */
+    chargeSuper: function (p) {
+      if (p.superUsed >= p.superCharges || p.superMeter >= 1) return;
+      p.superMeter = Math.min(1, p.superMeter + (p.superFill || 1) / SUPER_HITS);
+      if (p.superMeter >= 1) {
+        if (window.Sound) Sound.play('superready');
+        Combat.floatText(p.x, p.y - 124, 'суперприём готов!', '#ffd24a');
+        Combat.particles(p.x, p.y - 50, '#ffdf5e', 14, { speed: 130, star: true });
+        if (window.Online) Online.fx('text', p.x, p.y - 124, 'суперприём готов!');
+      }
+    },
+
+    /**
+     * Суперприём (считает хозяин). У каждого героя свой:
+     *   Ам Ням — «АМ!»: втягивает слизней вокруг и кусает всех рядом;
+     *   кошечка — «Звездопад»: звёзды падают на ближайших слизней.
+     */
+    startSuper: function (p) {
+      if (p.downed || !Players.superReady(p)) return false;
+      p.superUsed++;
+      p.superMeter = 0;
+      if (window.Sound) Sound.play('super');
+      Combat.shake(8);
+
+      if (p.hero === 'omnom') {
+        superVisual(p, true);
+        Combat.floatText(p.x, p.y - 110, 'АМ!', '#8fd14f');
+      } else {
+        Combat.floatText(p.x, p.y - 110, 'Звездопад!', '#ffd24a');
+        Combat.particles(p.x, p.y - 60, '#fff6b0', 16, { speed: 160, star: true });
+        var targets = Enemies.list.filter(function (e) {
+          return !e.dead && e.spawnIn <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < 440;
+        }).sort(function (a, b) {
+          return Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y);
+        }).slice(0, STAR_COUNT);
+        for (var i = 0; i < STAR_COUNT; i++) {
+          var x, y;
+          if (targets.length) {
+            var t = targets[i % targets.length];
+            x = t.x; y = t.y;
+          } else {
+            // Никого рядом — звёзды падают вокруг героини
+            var a = i / STAR_COUNT * Math.PI * 2;
+            x = p.x + Math.cos(a) * 110; y = p.y + Math.sin(a) * 70;
+          }
+          var delay = i * 0.13;
+          Combat.fallingStar(x, y, delay, p);
+          if (window.Online) Online.fx('star', x, y, null, { dl: delay });
+        }
+      }
+      if (window.Online) Online.fx('super', p.x, p.y - 60, p.hero);
+      return true;
+    },
+
+    /** Звезда суперприёма. owner — герой, если звезда настоящая (у хозяина). */
+    fallingStar: function (x, y, delay, owner) {
+      starsList.push({ x: x, y: y, delay: delay || 0, t: 0, owner: owner || null });
+    },
+
+    /** Гостю пришло «суперприём начался» — показываем без урона. */
+    superFx: function (hero, x, y) {
+      var p = hero === 'omnom' ? Players.p1 : Players.p2;
+      if (window.Sound) Sound.play('super');
+      Combat.shake(8);
+      if (hero === 'omnom' && p) {
+        superVisual(p, false);
+        Combat.floatText(p.x, p.y - 110, 'АМ!', '#8fd14f');
+      } else {
+        Combat.floatText(x, y - 50, 'Звездопад!', '#ffd24a');
+      }
+    },
+
     floatText: function (x, y, text, color) {
       textsList.push({ x: x, y: y, text: text, color: color, life: 0.9 });
     },
@@ -337,17 +469,213 @@
       var hits = Combat.sweepTargets(p);
       for (var j = 0; j < hits.length; j++) {
         var e = hits[j];
-        var r = Combat.rollHit(p, s.damage);
-        // Щит или призрачность — слизень сам покажет «щит!» / «сквозь!»
-        if (!Enemies.hurt(e, r.dmg, p.x, p.y, s.knockback * (r.crit ? 1.4 : 1))) continue;
-
-        Combat.hitFeedback(p, e, r.dmg, r.crit, s.spin);
+        var r = Combat.strike(p, e, s.index | 0);
+        if (!r) continue;
         if (window.Online) {
           Online.fx('hit', e.x, e.y - e.r * 0.8);
           Online.fx('dmg', e.x, e.y - e.r * 1.8, Combat.hitText(r.dmg, r.crit),
             { i: e.netId, c: r.crit ? 1 : 0 });
         }
       }
+    }
+  }
+
+  /* ------------------------------------------------------------------------
+   * Серия попаданий: каждые STREAK_STEP ударов без урона — горстка конфет.
+   * Горстка маленькая (1, потом 2, дальше максимум 3), чтобы серия радовала,
+   * но не заменяла обычную добычу.
+   * ---------------------------------------------------------------------- */
+  function addStreak(p) {
+    p.streak = (p.streak || 0) + 1;
+    if (p.streak > (Game.stats.bestStreak || 0)) Game.stats.bestStreak = p.streak;
+    if (p.streak % STREAK_STEP) return;
+
+    var n = Math.min(STREAK_CANDY_MAX, p.streak / STREAK_STEP);
+    for (var i = 0; i < n; i++) Combat.dropCandy(p.x, p.y - 10);
+    var text = 'серия ' + p.streak + '! +' + n + ' 🍬';
+    Combat.floatText(p.x, p.y - 124, text, '#ffb04a');
+    Combat.particles(p.x, p.y - 60, '#ffca4a', 10, { speed: 120, star: true });
+    if (window.Online) Online.fx('text', p.x, p.y - 124, text);
+    if (window.Sound) Sound.play('streak');
+  }
+
+  /* ------------------------------------------------------------------------
+   * Суперприёмы
+   * ---------------------------------------------------------------------- */
+
+  /** «АМ!» Ам Няма: live — считать урон (у хозяина) или только показать. */
+  function superVisual(p, live) {
+    supersList.push({ p: p, t: 0, live: live, bitten: false });
+  }
+
+  function updateSupers(dt, live) {
+    var i, j, e;
+
+    for (i = supersList.length - 1; i >= 0; i--) {
+      var s = supersList[i];
+      var p = s.p;
+      s.t += dt;
+
+      if (s.t < AMNOM_PULL) {
+        // Втягивает слизней к себе (боссы слишком тяжёлые)
+        if (s.live) {
+          for (j = 0; j < Enemies.list.length; j++) {
+            e = Enemies.list[j];
+            if (e.dead || e.isBoss || e.spawnIn > 0) continue;
+            var dx = p.x - e.x, dy = p.y - e.y;
+            var d = Math.hypot(dx, dy) || 1;
+            if (d > AMNOM_PULL_R || d < 46) continue;
+            var pull = 420 * (1 - (e.def.knockResist || 0) * 0.5) * dt;
+            e.x += dx / d * Math.min(pull, d - 46);
+            e.y += dy / d * Math.min(pull, d - 46);
+          }
+        }
+        if (Math.random() < 0.6) {
+          var a = Math.random() * Math.PI * 2;
+          Combat.particles(p.x + Math.cos(a) * AMNOM_PULL_R * 0.8,
+            p.y - 30 + Math.sin(a) * AMNOM_PULL_R * 0.5, '#d8ffb0', 1, { speed: 20 });
+        }
+      } else if (!s.bitten) {
+        s.bitten = true;
+        Combat.shake(12);
+        ringsList.push({ x: p.x, y: p.y - 30, r0: 30, r1: AMNOM_BITE_R + 20, t: 0, life: 0.4, color: '#8fd14f' });
+        Combat.particles(p.x, p.y - 40, '#b8f28a', 26, { speed: 260, size: 6, star: true });
+        if (window.Sound) Sound.play('boom');
+        if (s.live) {
+          var dmg = Math.round(AMNOM_DAMAGE * (p.damageMul || 1) * (p.superMul || 1) * 10) / 10;
+          hurtAround(p, p.x, p.y, AMNOM_BITE_R, dmg, 460);
+        }
+      } else if (s.t > AMNOM_PULL + 0.3) {
+        supersList.splice(i, 1);
+      }
+    }
+
+    for (i = starsList.length - 1; i >= 0; i--) {
+      var st = starsList[i];
+      if (st.delay > 0) { st.delay -= dt; continue; }
+      st.t += dt;
+      if (st.t < STAR_FALL) continue;
+
+      // Звезда упала
+      starsList.splice(i, 1);
+      ringsList.push({ x: st.x, y: st.y, r0: 10, r1: STAR_RADIUS + 10, t: 0, life: 0.3, color: '#ffd24a' });
+      Combat.particles(st.x, st.y - 10, '#ffdf5e', 10, { speed: 160, star: true });
+      Combat.shake(3);
+      if (window.Sound) Sound.play('star');
+      if (live && st.owner) {
+        var o = st.owner;
+        var sdmg = Math.round(STAR_DAMAGE * (o.damageMul || 1) * (o.superMul || 1) * 10) / 10;
+        hurtAround(o, st.x, st.y, STAR_RADIUS, sdmg, 200);
+      }
+    }
+
+    for (i = ringsList.length - 1; i >= 0; i--) {
+      ringsList[i].t += dt;
+      if (ringsList[i].t >= ringsList[i].life) ringsList.splice(i, 1);
+    }
+  }
+
+  /** Урон суперприёма всем слизням в круге. Шкалу и серию он не копит. */
+  function hurtAround(p, x, y, radius, dmg, knock) {
+    var list = Enemies.list.slice();
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      if (e.dead || e.spawnIn > 0) continue;
+      if (Math.hypot(e.x - x, e.y - y) > radius + e.r) continue;
+      if (!Enemies.hurt(e, dmg, x, y, knock)) continue;
+      Combat.floatText(e.x + (Math.random() * 16 - 8), e.y - e.r * 1.8, '-' + dmg, '#ffd24a');
+      if (window.Online) {
+        Online.fx('dmg', e.x, e.y - e.r * 1.8, '-' + dmg, { i: e.netId, c: 1 });
+      }
+    }
+  }
+
+  /** Вихрь вокруг Ам Няма, пока он втягивает слизней. */
+  function drawSuperPull(c) {
+    for (var i = 0; i < supersList.length; i++) {
+      var s = supersList[i];
+      if (s.t >= AMNOM_PULL) continue;
+      var k = s.t / AMNOM_PULL;
+      c.save();
+      c.translate(s.p.x, s.p.y - 20);
+      c.strokeStyle = '#8fd14f';
+      c.lineWidth = 4;
+      c.setLineDash([18, 14]);
+      for (var j = 0; j < 3; j++) {
+        var r = AMNOM_PULL_R * (1 - ((k + j / 3) % 1));
+        c.globalAlpha = 0.5 * (r / AMNOM_PULL_R);
+        c.beginPath();
+        c.ellipse(0, 0, r, r * 0.55, 0, s.t * 6 + j, s.t * 6 + j + Math.PI * 2);
+        c.stroke();
+      }
+      c.restore();
+    }
+  }
+
+  /** Тени на земле — сюда упадёт звезда. */
+  function drawStarShadows(c) {
+    for (var i = 0; i < starsList.length; i++) {
+      var st = starsList[i];
+      var k = st.delay > 0 ? 0.15 : 0.15 + 0.85 * (st.t / STAR_FALL);
+      c.save();
+      c.globalAlpha = 0.35 * k + 0.1;
+      c.fillStyle = '#6a55c9';
+      c.beginPath();
+      c.ellipse(st.x, st.y, STAR_RADIUS * (0.4 + 0.6 * k), STAR_RADIUS * 0.4 * (0.4 + 0.6 * k), 0, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+  }
+
+  /** Сами падающие звёзды. */
+  function drawStars(c) {
+    for (var i = 0; i < starsList.length; i++) {
+      var st = starsList[i];
+      if (st.delay > 0) continue;
+      var k = st.t / STAR_FALL;
+      var y = st.y - 20 - 340 * (1 - k * k);
+      c.save();
+      c.translate(st.x + (1 - k) * 60, y);
+      // Хвост
+      c.globalAlpha = 0.45;
+      c.strokeStyle = '#fff6b0';
+      c.lineWidth = 8;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.lineTo(30, -60);
+      c.stroke();
+      c.globalAlpha = 1;
+      c.rotate(k * 6);
+      c.fillStyle = '#ffdf5e';
+      c.strokeStyle = '#e0a413';
+      c.lineWidth = 2.5;
+      c.beginPath();
+      for (var j = 0; j < 10; j++) {
+        var a = -Math.PI / 2 + j * Math.PI / 5;
+        var r = j % 2 ? 7 : 17;
+        c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      c.closePath();
+      c.fill();
+      c.stroke();
+      c.restore();
+    }
+  }
+
+  function drawRings(c) {
+    for (var i = 0; i < ringsList.length; i++) {
+      var g = ringsList[i];
+      var k = g.t / g.life;
+      c.save();
+      c.globalAlpha = 0.8 * (1 - k);
+      c.strokeStyle = g.color;
+      c.lineWidth = 10 * (1 - k) + 2;
+      c.beginPath();
+      var r = g.r0 + (g.r1 - g.r0) * k;
+      c.ellipse(g.x, g.y, r, r * 0.6, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
     }
   }
 
@@ -424,7 +752,7 @@
       if (!gone && s.from === 'enemy') {
         for (var j = 0; j < Players.list.length; j++) {
           var p = Players.list[j];
-          if (p.downed || p.invul > 0) continue;
+          if (p.downed || p.invul > 0 || p.dashTimer > 0) continue;   // рывком проскакивают сквозь плевки
           if (Math.hypot(p.x - s.x, (p.y - 40) - s.y) < s.r + 22) {
             if (Combat.damagePlayer(p, s.damage, s.x, s.y) && s.slow) {
               Combat.slowPlayer(p, s.slow);

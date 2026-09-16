@@ -1,8 +1,14 @@
 /* ============================================================================
  * js/players.js — герои: управление, движение, замах и ИИ кошечки.
  *
- * Игрок 1 — Ам Ням:   WASD, удар: E или Пробел
- * Игрок 2 — кошечка:  стрелки, удар: Enter
+ * Игрок 1 — Ам Ням:   WASD, удар: E или Пробел, рывок: левый Shift, суперприём: Q
+ * Игрок 2 — кошечка:  стрелки, удар: Enter, рывок: правый Shift, суперприём: правый Ctrl
+ *
+ * Приёмы:
+ *   • удар — комбо из трёх взмахов;
+ *   • зажать удар — заряженный круговой удар (оглушает слизней, ломает щит);
+ *   • рывок — короткий бросок с неуязвимостью; удар сразу после него — выпад;
+ *   • суперприём — когда шкала полная (сам приём живёт в combat.js).
  * В режиме «Один игрок» кошечкой управляет ИИ (Players.updateAI).
  *
  * Герой хранится как простой объект (см. makePlayer). Урон, здоровье и
@@ -16,17 +22,19 @@
   var CONTROLS = {
     p1: {
       up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
-      attack: ['KeyE', 'Space']
+      attack: ['KeyE', 'Space'], dash: ['ShiftLeft'], super: ['KeyQ']
     },
     p2: {
       up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
-      attack: ['Enter', 'NumpadEnter']
+      attack: ['Enter', 'NumpadEnter'], dash: ['ShiftRight'], super: ['ControlRight']
     },
     // В сетевой игре телефон (или клавиатура) один на игрока — годится любая раскладка
     both: {
       up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'],
       left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-      attack: ['KeyE', 'Space', 'Enter', 'NumpadEnter']
+      attack: ['KeyE', 'Space', 'Enter', 'NumpadEnter'],
+      dash: ['ShiftLeft', 'ShiftRight'],
+      super: ['KeyQ', 'ControlRight']
     }
   };
 
@@ -61,6 +69,31 @@
 
   /** Окно, пока ещё можно продолжить комбо после окончания взмаха. */
   var COMBO_WINDOW = 0.55;
+
+  /**
+   * Особые удары — идут в общем списке сразу за комбо, поэтому гость
+   * сообщает хозяину их номер так же, как номер удара в комбо.
+   *   3) заряженный удар: круговой, сильный, оглушает и ломает щит;
+   *   4) выпад после рывка: узкий, длинный, сильно отбрасывает.
+   * stun — на сколько секунд оглушает, breakShield — сносит щит целиком.
+   */
+  var MOVE_CHARGED = 3;
+  var MOVE_LUNGE = 4;
+  var MOVES = COMBO.concat([
+    { time: 0.40, rest: 0.26, arc: Math.PI * 2, way: 1, radiusK: 1.45, lunge: 60, damage: 3, knockback: 480,
+      spin: true, stun: 1.2, breakShield: true },
+    { time: 0.20, rest: 0.16, arc: 0.8, way: 1, radiusK: 1.5, lunge: 330, damage: 2, knockback: 460 }
+  ]);
+
+  /* Рывок */
+  var DASH_TIME = 0.2;       // сколько длится бросок
+  var DASH_SPEED = 640;      // скорость броска
+  var DASH_COOLDOWN = 1.6;   // перезарядка рывка
+  var LUNGE_WINDOW = 0.3;    // сколько после рывка удар становится выпадом
+
+  /* Заряд удара */
+  var CHARGE_START = 0.28;   // сколько держать кнопку, прежде чем начнётся заряд
+  var CHARGE_TIME = 0.6;     // сколько заряжать до полной силы
 
   /** Зажата ли хоть одна клавиша действия. */
   function held(keys, list) {
@@ -105,6 +138,21 @@
       swing: null,                // параметры текущего взмаха (см. Players.attack)
       comboIndex: 0,              // какой удар в цепочке следующий
       comboTimer: 0,              // сколько осталось, чтобы продолжить комбо
+      dashTimer: 0,               // идёт рывок (герой неуязвим)
+      dashCd: 0,                  // перезарядка рывка
+      dashX: 0, dashY: 0,         // куда летит рывок
+      afterDash: 0,               // окно выпада после рывка
+      chargeArm: false,           // кнопка удара зажата с момента нажатия
+      chargeHold: 0,              // сколько её держат
+      chargeT: 0,                 // заряд удара 0…1
+      touchWas: false,            // палец на кнопке удара в прошлом кадре
+      lastMove: 0,                // номер последнего удара (для сети)
+      streak: 0,                  // серия попаданий без полученного урона
+      superMeter: 0,              // шкала суперприёма 0…1
+      superUsed: 0,               // сколько раз суперприём уже применён в забеге
+      superCharges: 1,            // сколько раз за забег его можно применить
+      superMul: 1,                // сила суперприёма (прокачка)
+      superFill: 1,               // как быстро копится шкала (прокачка)
       swingRadius: BASE.swingRadius,
       hitFlash: 0,                // вспышка после вертушки
 
@@ -176,6 +224,7 @@
         var p = Players.list[i];
 
         if (p.downed) {
+          dropCharge(p);
           updateDowned(p, dt);
           continue;
         }
@@ -183,7 +232,7 @@
         if (p.isRemote) {
           followRemote(p, dt);
         } else {
-          var dir = p.isAI ? Players.updateAI(p, dt) : readKeys(p);
+          var dir = p.isAI ? Players.updateAI(p, dt) : readKeys(p, dt);
           movePlayer(p, dir, dt);
         }
         updateTimers(p, dt);
@@ -196,16 +245,64 @@
      * конфеты) по-прежнему считает хозяин комнаты.
      */
     updateLocal: function (p, dt) {
-      if (!p || p.downed) return;
-      movePlayer(p, readKeys(p), dt);
+      if (!p) return;
+      if (p.downed) { dropCharge(p); return; }
+      movePlayer(p, readKeys(p, dt), dt);
       updateTimers(p, dt);
     },
 
     /** Угол лезвия в момент t (0…1) — combat.js считает по нему попадания. */
     swingAngleOf: function (p, t) { return swingAngle(p, t); },
 
-    /** Удары комбо — хозяин считает по ним урон от попаданий гостя. */
-    combo: COMBO,
+    /** Все удары (комбо и особые) — хозяин считает по ним урон от попаданий гостя. */
+    combo: MOVES,
+    MOVE_CHARGED: MOVE_CHARGED,
+    MOVE_LUNGE: MOVE_LUNGE,
+    DASH_COOLDOWN: DASH_COOLDOWN,
+
+    /** Готов ли суперприём: шкала полная и в этом забеге он ещё остался. */
+    superReady: function (p) {
+      return p.superMeter >= 1 && p.superUsed < p.superCharges;
+    },
+
+    /** Нажата кнопка суперприёма. */
+    trySuper: function (p) {
+      if (p.downed || !Players.superReady(p)) {
+        if (!p.superHintT || Game.time - p.superHintT > 1) {
+          p.superHintT = Game.time;
+          Combat.floatText(p.x, p.y - 124,
+            p.superUsed >= p.superCharges ? 'суперприём уже был' : 'шкала ещё не полная', '#d9c8ff');
+        }
+        return false;
+      }
+      // Гость просит хозяина: приём задевает слизней, а их считает хозяин
+      if (window.Online && Online.isGuest()) {
+        Online.noteSuper();
+        p.superMeter = 0;
+        p.superAsked = Date.now();
+        return true;
+      }
+      return Combat.startSuper(p);
+    },
+
+    /** Рывок туда, куда бежишь (или куда смотришь). */
+    dash: function (p, dir) {
+      if (p.downed || p.dashCd > 0 || p.dashTimer > 0 || p.attackTimer > 0) return false;
+      var dx = dir && dir.x, dy = dir && dir.y;
+      if (!dx && !dy) { dx = p.aimX || p.facing; dy = p.aimY || 0; }
+      var l = Math.hypot(dx, dy) || 1;
+      p.dashX = dx / l; p.dashY = dy / l;
+      p.aimX = p.dashX; p.aimY = p.dashY;
+      p.dashTimer = DASH_TIME;
+      p.dashCd = DASH_COOLDOWN;
+      p.afterDash = DASH_TIME + LUNGE_WINDOW;
+      // Рывок сбрасывает заряд
+      p.chargeArm = false; p.chargeHold = 0; p.chargeT = 0;
+      if (Math.abs(p.dashX) > 0.2) p.facing = p.dashX > 0 ? 1 : -1;
+      if (window.Sound) Sound.play('dash');
+      Combat.particles(p.x, p.y - 10, '#ffffff', 8, { speed: 90 });
+      return true;
+    },
 
     /* ----------------------------------------------------------------------
      * ИИ кошечки в режиме «Один игрок». Приоритеты по порядку:
@@ -288,15 +385,21 @@
      * вверх, вниз, вбок и по диагоналям), а если стоит — куда смотрел.
      * angle — можно задать угол вручную (этим пользуется ИИ).
      */
-    attack: function (p, angle) {
-      if (p.cooldown > 0 || p.attackTimer > 0 || p.hp <= 0) return false;
+    attack: function (p, angle, move) {
+      if (p.cooldown > 0 || p.attackTimer > 0 || p.hp <= 0 || p.dashTimer > 0) return false;
 
       var aim = (angle != null) ? angle : Math.atan2(p.aimY, p.aimX);
-      var step = COMBO[p.comboIndex];
+      // Сразу после рывка обычный удар превращается в выпад
+      if (move == null && p.afterDash > 0) move = MOVE_LUNGE;
+      var special = move != null && move >= COMBO.length;
+      var index = special ? move : p.comboIndex;
+      var step = MOVES[index];
       var spd = p.atkSpeed || 1;            // быстрое оружие машет чаще
       var time = step.time / spd;
 
-      if (window.Sound) Sound.play('swing');
+      if (window.Sound) Sound.play(special ? 'heavy' : 'swing');
+      p.afterDash = 0;
+      p.lastMove = index;
       p.swing = {
         aim: aim,
         from: step.spin ? aim - 0.5 : aim - step.arc / 2 * step.way,
@@ -306,7 +409,7 @@
         knockback: step.knockback * (p.knockMul || 1),
         spin: !!step.spin,
         time: time,
-        index: p.comboIndex,
+        index: index,
         hit: []           // кого уже задели этим взмахом (пригодится на Этапе 3)
       };
 
@@ -316,7 +419,7 @@
 
       // Гость сообщает хозяину о каждом своём ударе — урон посчитает хозяин
       var guest = window.Online && Online.isGuest();
-      if (guest && !p.isRemote) Online.noteAttack();
+      if (guest && !p.isRemote) Online.noteAttack(index);
 
       // Волшебная палочка: вместе со взмахом летит звёздочка
       // (у гостя звёздочки присылает хозяин вместе с картинкой мира)
@@ -339,8 +442,9 @@
       // Поворачиваем героя лицом к удару (если бьём не строго вверх/вниз)
       if (Math.abs(Math.cos(aim)) > 0.25) p.facing = Math.cos(aim) > 0 ? 1 : -1;
 
-      // Следующий удар в цепочке; после вертушки начинаем заново
-      p.comboIndex = (p.comboIndex + 1) % COMBO.length;
+      // Следующий удар в цепочке; после вертушки начинаем заново.
+      // Особый удар цепочку не продолжает, а начинает сначала
+      p.comboIndex = special ? 0 : (p.comboIndex + 1) % COMBO.length;
       return true;
     },
 
@@ -393,10 +497,18 @@
     return !!(window.Shop && Shop.inGame);
   }
 
-  function readKeys(p) {
+  /** Упавший или ушедший в лавку герой теряет заряд и отложенный выпад. */
+  function dropCharge(p) {
+    p.chargeArm = false;
+    p.chargeHold = 0;
+    p.chargeT = 0;
+    p.lungeQueued = false;
+  }
+
+  function readKeys(p, dt) {
     var ctl = p.controls;
     var dir = { x: 0, y: 0 };
-    if (inShop()) return dir;
+    if (inShop()) { dropCharge(p); return dir; }
     if (held(Game.keys, ctl.left)) dir.x -= 1;
     if (held(Game.keys, ctl.right)) dir.x += 1;
     if (held(Game.keys, ctl.up)) dir.y -= 1;
@@ -404,11 +516,8 @@
 
     // Управление пальцем (телефон/планшет) — работает вместе с клавиатурой
     var touch = window.Touch ? Touch.inputFor(p) : null;
-    if (touch) {
-      if (touch.dx || touch.dy) { dir.x = touch.dx; dir.y = touch.dy; }
-      // Палец на кнопке удара — бьём очередями, как только проходит задержка
-      if (touch.attack && p.cooldown <= 0) Players.attack(p);
-    }
+    var touchFire = !!(touch && touch.attack);
+    if (touch && (touch.dx || touch.dy)) { dir.x = touch.dx; dir.y = touch.dy; }
 
     // Запоминаем направление — в него и уйдёт удар (в том числе вверх и вниз)
     if (dir.x || dir.y) {
@@ -417,7 +526,43 @@
       p.aimY = dir.y / l;
     }
 
-    if (tapped(ctl.attack)) Players.attack(p);
+    // Рывок и суперприём
+    if (tapped(ctl.dash || []) || (touch && touch.dash)) Players.dash(p, dir);
+    if (tapped(ctl.super || []) || (touch && touch.super)) Players.trySuper(p);
+
+    // Удар: нажатие бьёт сразу, а если кнопку держать — копится заряд.
+    // Отпустил полностью заряженным — выходит заряженный удар.
+    var pressed = tapped(ctl.attack) || (touchFire && !p.touchWas);
+    var holding = held(Game.keys, ctl.attack) || touchFire;
+    p.touchWas = touchFire;
+
+    if (pressed) {
+      // Ударил прямо в рывке — выпад выйдет, как только рывок кончится
+      if (p.dashTimer > 0) p.lungeQueued = true;
+      else Players.attack(p);
+      p.chargeArm = true;
+      p.chargeHold = 0;
+    }
+    if (p.lungeQueued && p.dashTimer <= 0) {
+      p.lungeQueued = false;
+      Players.attack(p);
+    }
+    if (p.chargeArm) {
+      if (holding) {
+        p.chargeHold += dt || 0;
+        var was = p.chargeT;
+        p.chargeT = Math.max(0, Math.min(1, (p.chargeHold - CHARGE_START) / CHARGE_TIME));
+        if (was < 1 && p.chargeT >= 1 && window.Sound) Sound.play('charged');
+      } else {
+        if (p.chargeT >= 1) {
+          p.cooldown = 0;                       // заряд копился дольше любой задержки
+          Players.attack(p, null, MOVE_CHARGED);
+        }
+        p.chargeArm = false;
+        p.chargeHold = 0;
+        p.chargeT = 0;
+      }
+    }
     return dir;
   }
 
@@ -443,9 +588,13 @@
     if (inp.ax || inp.ay) { p.aimX = inp.ax; p.aimY = inp.ay; }
     p.walk += dt * (Math.hypot(p.vx, p.vy) > 20 ? 9 : 2.4);
 
+    // Рывок и заряд напарника — для неуязвимости и картинки
+    if (inp.dh) p.dashTimer = Math.max(p.dashTimer, 0.12);
+    p.chargeT = inp.ch || 0;
+
     // Удар ждёт, пока пройдёт задержка, но не дольше трети секунды
     if (inp.atk > 0) {
-      if (Players.attack(p)) inp.atk--;
+      if (Players.attack(p, null, inp.mv >= COMBO.length ? inp.mv : null)) inp.atk--;
       else if ((inp.atkAge += dt) > 0.35) { inp.atk = 0; }
       if (!inp.atk) inp.atkAge = 0;
     }
@@ -462,10 +611,16 @@
     var icy = Game.mod.ice;
     var sandy = Game.mod.sand;
 
-    if (len > 0 && !attacking) {
+    if (p.dashTimer > 0) {
+      // Рывок: летим с постоянной скоростью, управление ждёт
+      p.vx = p.dashX * DASH_SPEED;
+      p.vy = p.dashY * DASH_SPEED;
+      p.walk += dt * 12;
+    } else if (len > 0 && !attacking) {
       // По диагонали скорость такая же, как по прямой
       var nx = dir.x / len, ny = dir.y / len;
-      var target = p.speed * (sandy ? 0.82 : 1) * (p.slowTimer > 0 ? 0.55 : 1);
+      var target = p.speed * (sandy ? 0.82 : 1) * (p.slowTimer > 0 ? 0.55 : 1) *
+        (p.chargeT > 0 ? 0.5 : 1);           // с зарядом в лапках бежать тяжело
       if (icy) target *= 1.1;
       var accel = BASE.accel * (icy ? 0.35 : 1);
       p.vx += (nx * target - p.vx) * Math.min(1, accel / target * dt);
@@ -578,6 +733,16 @@
 
   function updateTimers(p, dt) {
     if (p.slowTimer > 0) p.slowTimer = Math.max(0, p.slowTimer - dt);
+    if (p.dashTimer > 0) {
+      p.dashTimer = Math.max(0, p.dashTimer - dt);
+      // Рывок кончился — лишний разгон гасим, иначе герой уезжает ещё на полэкрана
+      if (p.dashTimer === 0 && !p.isRemote) {
+        var sp = Math.hypot(p.vx, p.vy);
+        if (sp > p.speed) { p.vx *= p.speed / sp; p.vy *= p.speed / sp; }
+      }
+    }
+    if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
+    if (p.afterDash > 0) p.afterDash = Math.max(0, p.afterDash - dt);
     if (p.invul > 0) p.invul = Math.max(0, p.invul - dt);
     if (p.hurtFlash > 0) p.hurtFlash = Math.max(0, p.hurtFlash - dt);
     if (p.attackTimer > 0) {
@@ -621,6 +786,7 @@
     var hop = moving ? Math.abs(Math.sin(p.walk)) * (7 - tired * 2.5) : 0;
     var squash = 1 + Math.sin(p.walk * (moving ? 2 : 1)) * (moving ? 0.05 : 0.03 + tired * 0.05);
     var tremble = tired ? Math.sin(Game.time * 17) * 0.02 * tired : 0;
+    if (p.chargeT > 0) tremble += Math.sin(Game.time * 40) * 0.035 * p.chargeT;   // дрожит от натуги
 
     // Наклон в сторону удара; на вертушке герой ещё и разворачивается
     var facing = p.facing;
@@ -634,6 +800,8 @@
 
     Game.drawShadow(c, p.x, p.y, 30 - hop * 0.25);
 
+    if (p.chargeT > 0) drawCharge(c, p);
+    if (p.dashTimer > 0) drawDashTrail(c, p, facing, hop);
     if (p.hitFlash > 0) drawFlash(c, p);
     if (s) drawSwing(c, p, t);
 
@@ -894,6 +1062,52 @@
     c.quadraticCurveTo(x - s * 0.16, y + s * 0.16, x - s, y);
     c.quadraticCurveTo(x - s * 0.16, y - s * 0.16, x, y - s);
     c.fill();
+  }
+
+  /** Заряд удара: кольцо вокруг героя сходится, полный заряд сияет. */
+  function drawCharge(c, p) {
+    var k = p.chargeT;
+    var full = k >= 1;
+    var r = p.swingRadius * (1.5 - k * 0.55);
+    c.save();
+    c.translate(p.x, p.y - 34);
+    c.globalAlpha = full ? 0.55 + Math.sin(Game.time * 18) * 0.25 : 0.25 + k * 0.35;
+    c.strokeStyle = full ? '#fff6b0' : p.color;
+    c.lineWidth = full ? 6 : 3 + k * 3;
+    c.setLineDash(full ? [] : [10, 8]);
+    c.beginPath();
+    c.arc(0, 0, r, Game.time * 3, Game.time * 3 + Math.PI * 2);
+    c.stroke();
+    c.setLineDash([]);
+    // Дуга прогресса заряда
+    c.globalAlpha = 0.9;
+    c.strokeStyle = full ? '#ffd24a' : '#ffffff';
+    c.lineWidth = 4;
+    c.beginPath();
+    c.arc(0, 0, 44, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k);
+    c.stroke();
+    if (full) {
+      c.fillStyle = '#fff6b0';
+      for (var i = 0; i < 4; i++) {
+        var a = Game.time * 5 + i * Math.PI / 2;
+        star(c, Math.cos(a) * r, Math.sin(a) * r, 6);
+      }
+    }
+    c.restore();
+  }
+
+  /** Рывок: позади героя тают две полупрозрачные копии. */
+  function drawDashTrail(c, p, facing, hop) {
+    var dx = p.dashX, dy = p.dashY;
+    if (!dx && !dy) {                       // у напарника направление берём из скорости
+      var v = Math.hypot(p.vx, p.vy) || 1;
+      dx = p.vx / v; dy = p.vy / v;
+    }
+    for (var i = 2; i >= 1; i--) {
+      drawHeroSprite(c, p, p.x - dx * i * 22, p.y - dy * i * 22 - hop, {
+        flip: facing < 0, alpha: 0.18 * (3 - i), step: 0
+      });
+    }
   }
 
   /** Вспышка-кольцо после вертушки. */
