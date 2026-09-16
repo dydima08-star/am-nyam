@@ -1187,6 +1187,8 @@
     if (!box) return;
 
     var st = Net.state;
+    // Когда оба на связи, карточка шире — в ней урон и сердечки обоих героев
+    box.parentNode.classList.toggle('is-wide', !!Online.active && st === 'open');
     var title = document.getElementById('net-title');
     var hint = document.getElementById('net-hint');
 
@@ -1303,6 +1305,7 @@
       box.appendChild(start);
 
       box.appendChild(sharedLine());
+      box.appendChild(UI.heroStats());
       var extra = document.createElement('div');
       extra.className = 'net-row';
       extra.appendChild(smallButton('🗡 Лавка мечей', function () { Shop.open('room'); }));

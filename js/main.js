@@ -174,7 +174,6 @@
       screens[i].classList.toggle('active', screens[i].id === 'screen-' + name);
     }
     document.getElementById('topbar').hidden = (Game.state !== 'playing');
-    if (name === 'menu' && window.UI) UI.renderMenuStats();
     refreshVersionLine();
   };
 

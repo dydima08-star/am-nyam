@@ -299,7 +299,7 @@
   }
 
   /* ----------------------------------------------------------------------
-   * Главный экран: сколько у героя урона, защиты и сердечек и откуда они
+   * Комната: сколько у героев урона, защиты и сердечек и откуда они
    * -------------------------------------------------------------------- */
   var SOURCE = {
     weapon: 'оружие', level: 'прокачка', gear: 'вещи', perks: 'улучшения',
@@ -327,17 +327,23 @@
     return html + '</span><span class="stat-total">итого ' + fmt(stat.total) + '</span></div>';
   }
 
-  UI.renderMenuStats = function () {
-    if (!window.Upgrades || !window.Shop) return;
-    ['omnom', 'cat'].forEach(function (hero) {
-      var box = document.getElementById('stats-' + hero);
-      if (!box) return;
-      var s = Upgrades.sheet(hero);
+  /** Два блока рядом — Ам Ням и Кошечка (для экрана комнаты, js/online.js). */
+  UI.heroStats = function () {
+    var wrap = document.createElement('div');
+    wrap.className = 'net-stats';
+    [['omnom', 'Ам Ням'], ['cat', 'Кошечка']].forEach(function (pair) {
+      var s = Upgrades.sheet(pair[0]);
+      var box = document.createElement('div');
+      box.className = 'hero-stats is-' + pair[0];
       box.innerHTML =
+        '<div class="hero-stats-title"><img src="' + Assets.sprites[pair[0] + '_base'].src + '" alt="">' +
+        pair[1] + '</div>' +
         statRow('⚔', 'Урон', 'обычный', s.damage, round1, s.names) +
         statRow('🛡', 'Защита', 'обычная', s.dodge, pct, s.names) +
         statRow('♥', 'Сердечки', 'обычно', s.hp, String, s.names);
+      wrap.appendChild(box);
     });
+    return wrap;
   };
 
   UI.formatTime = formatTime;
