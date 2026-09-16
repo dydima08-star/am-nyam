@@ -14,7 +14,7 @@
   'use strict';
 
   var Game = {
-    VERSION: 18,        // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 19,        // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
@@ -174,6 +174,7 @@
       screens[i].classList.toggle('active', screens[i].id === 'screen-' + name);
     }
     document.getElementById('topbar').hidden = (Game.state !== 'playing');
+    if (name === 'menu' && window.UI) UI.renderMenuStats();
     refreshVersionLine();
   };
 

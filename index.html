@@ -19,7 +19,7 @@
   не возьмёт из памяти старые файлы вперемешку с новыми.
 -->
 <html lang="ru">
-<!-- AMNYAM-VERSION: 18 -->
+<!-- AMNYAM-VERSION: 19 -->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -32,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
   <div id="app">
@@ -68,6 +68,8 @@
                 <span class="keys">удар: <kbd>Пробел</kbd> / <kbd>Enter</kbd> · держать — заряд</span>
                 <span class="keys">рывок: <kbd>Shift</kbd> · суперприём: <kbd>Q</kbd></span>
               </figcaption>
+              <!-- Урон, защита и сердечки: обычные + бонусы = итого (js/ui.js) -->
+              <div id="stats-omnom" class="hero-stats"></div>
             </figure>
 
             <div class="together" aria-hidden="true">♥</div>
@@ -80,6 +82,7 @@
                 <span class="keys">удар: <kbd>Пробел</kbd> / <kbd>Enter</kbd> · держать — заряд</span>
                 <span class="keys">рывок: <kbd>Shift</kbd> · суперприём: <kbd>Q</kbd></span>
               </figcaption>
+              <div id="stats-cat" class="hero-stats"></div>
             </figure>
           </div>
 
@@ -258,26 +261,26 @@
   </div>
 
   <!-- ===== Скрипты игры (порядок важен!) ===== -->
-  <script src="js/sound.js?v=18"></script>
-  <script src="js/config.js?v=18"></script>
-  <script src="js/assets.js?v=18"></script>
-  <script src="js/touch.js?v=18"></script>
-  <script src="js/weapons.js?v=18"></script>
-  <script src="js/emotions.js?v=18"></script>
-  <script src="js/equipment.js?v=18"></script>
-  <script src="js/upgrades.js?v=18"></script>
-  <script src="js/shop.js?v=18"></script>
-  <script src="js/home.js?v=18"></script>
-  <script src="js/wardrobe.js?v=18"></script>
-  <script src="js/worldmap.js?v=18"></script>
-  <script src="js/players.js?v=18"></script>
-  <script src="js/boss.js?v=18"></script>
-  <script src="js/enemies.js?v=18"></script>
-  <script src="js/combat.js?v=18"></script>
-  <script src="js/endless.js?v=18"></script>
-  <script src="js/net.js?v=18"></script>
-  <script src="js/online.js?v=18"></script>
-  <script src="js/ui.js?v=18"></script>
-  <script src="js/main.js?v=18"></script>
+  <script src="js/sound.js?v=19"></script>
+  <script src="js/config.js?v=19"></script>
+  <script src="js/assets.js?v=19"></script>
+  <script src="js/touch.js?v=19"></script>
+  <script src="js/weapons.js?v=19"></script>
+  <script src="js/emotions.js?v=19"></script>
+  <script src="js/equipment.js?v=19"></script>
+  <script src="js/upgrades.js?v=19"></script>
+  <script src="js/shop.js?v=19"></script>
+  <script src="js/home.js?v=19"></script>
+  <script src="js/wardrobe.js?v=19"></script>
+  <script src="js/worldmap.js?v=19"></script>
+  <script src="js/players.js?v=19"></script>
+  <script src="js/boss.js?v=19"></script>
+  <script src="js/enemies.js?v=19"></script>
+  <script src="js/combat.js?v=19"></script>
+  <script src="js/endless.js?v=19"></script>
+  <script src="js/net.js?v=19"></script>
+  <script src="js/online.js?v=19"></script>
+  <script src="js/ui.js?v=19"></script>
+  <script src="js/main.js?v=19"></script>
 </body>
 </html>

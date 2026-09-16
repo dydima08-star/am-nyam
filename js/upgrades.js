@@ -135,9 +135,12 @@
     /* ----------------------------------------------------------------------
      * Пересчёт характеристик героя: оружие → постоянные улучшения → карточка
      * -------------------------------------------------------------------- */
-    recalc: function (p) {
+    recalc: function (p, trace) {
       var hero = p.hero;
       var base = Players.BASE;
+      // trace(шаг) — необязательный: зовётся после каждого шага,
+      // по нему главный экран показывает, откуда у героя урон и сердечки
+      var step = trace || function () {};
 
       // Базовое состояние
       p.speed = base.speed;
@@ -155,30 +158,91 @@
 
       // 1) оружие из лавки
       Weapons.equip(p, Shop.equipped[hero], Shop.levelOf(hero, Shop.equipped[hero]));
+      step('weapon');
 
       // 2) надетая экипировка
       Equipment.apply(p);
+      step('gear');
 
       // 3) постоянные улучшения
       for (var i = 0; i < PERKS.length; i++) {
         var lvl = Shop.perkLevel(hero, PERKS[i].id);
         if (lvl > 0) PERKS[i].apply(p, lvl);
       }
+      step('perks');
 
       // 4) карточка, взятая в этом забеге
       for (var j = 0; j < p.runCards.length; j++) {
         var card = Upgrades.cardById(p.runCards[j]);
         if (card) card.apply(p);
       }
+      step('card');
 
       // 5) наряд из гардероба — он же решает, каким спрайтом рисовать героя
       if (window.Wardrobe) Wardrobe.apply(p);
+      step('costume');
 
       // 6) домашнее: ужин, крепкий сон и уют (js/home.js)
       if (window.Home) Home.applyRun(p);
+      step('home');
 
       if (p.healFull) { p.hp = p.maxHp; p.healFull = false; }
       p.hp = Math.min(p.hp, p.maxHp);
+    },
+
+    /**
+     * Откуда у героя урон, защита (уклонение) и сердечки — для главного экрана.
+     * Считается тем же recalc, что и перед забегом, на «пустом» герое.
+     * Ужин и сон берутся те, что подействуют в следующем забеге.
+     * Возвращает { damage, dodge, hp } — у каждого base, parts [{ id, add }], total —
+     * и names: название оружия, его уровень, название наряда.
+     */
+    sheet: function (hero) {
+      var p = { hero: hero, runCards: [], hp: 0 };
+      var keys = ['damage', 'dodge', 'hp'];
+      var prev = { damage: 1, dodge: 0, hp: Players.BASE.maxHp };   // без ничего
+      var out = {};
+      keys.forEach(function (k) { out[k] = { base: prev[k], parts: [], total: prev[k] }; });
+
+      function push(k, id, add) {
+        if (Math.abs(add) > 1e-6) out[k].parts.push({ id: id, add: add });
+      }
+
+      var home = window.Home;
+      var kept = home && { buff: home.runBuff, rested: home.rested };
+      if (home) {
+        var meal = home.data.dinner[hero];
+        var dish = meal && home.dishById(meal.id);
+        home.runBuff = { omnom: null, cat: null };
+        home.runBuff[hero] = dish ? dish.buff : null;
+        home.rested = home.restedPending;
+      }
+      try {
+        Upgrades.recalc(p, function (stage) {
+          var now = { damage: p.damageMul, dodge: p.dodge, hp: p.maxHp };
+          if (stage === 'weapon') {
+            // само оружие и его прокачка — отдельными строчками
+            var plain = Weapons.stats(Weapons.get(hero, p.weaponId), 0).damage;
+            push('damage', 'weapon', plain - prev.damage);
+            push('damage', 'level', now.damage - plain);
+          } else {
+            push('damage', stage, now.damage - prev.damage);
+          }
+          push('dodge', stage, now.dodge - prev.dodge);
+          push('hp', stage, now.hp - prev.hp);
+          prev = now;
+        });
+      } finally {
+        if (home) { home.runBuff = kept.buff; home.rested = kept.rested; }
+      }
+
+      keys.forEach(function (k) { out[k].total = prev[k]; });
+      out.names = {
+        weapon: Weapons.get(hero, p.weaponId).name,
+        level: p.weaponLevel,
+        costume: p.costumeName
+      };
+      return out;
     },
 
     /* ----------------------------------------------------------------------

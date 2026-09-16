@@ -298,6 +298,48 @@
     if (menuBtn) menuBtn.textContent = inRoom ? 'В комнату' : 'В меню';
   }
 
+  /* ----------------------------------------------------------------------
+   * Главный экран: сколько у героя урона, защиты и сердечек и откуда они
+   * -------------------------------------------------------------------- */
+  var SOURCE = {
+    weapon: 'оружие', level: 'прокачка', gear: 'вещи', perks: 'улучшения',
+    card: 'карточка', costume: 'наряд', home: 'домик'
+  };
+
+  function round1(v) { return String(Math.round(v * 10) / 10); }
+  function pct(v) { return Math.round(v * 100) + '%'; }
+
+  function statRow(icon, title, baseWord, stat, fmt, names) {
+    var html = '<div class="stat-row">' +
+      '<span class="stat-name">' + icon + ' ' + title + '</span>' +
+      '<span class="stat-parts">' +
+      '<span class="stat-base">' + baseWord + ' ' + fmt(stat.base) + '</span>';
+    stat.parts.forEach(function (part) {
+      var hint = '';
+      if (part.id === 'weapon') hint = names.weapon;
+      else if (part.id === 'level') hint = names.weapon + ' +' + names.level;
+      else if (part.id === 'costume') hint = names.costume;
+      html += '<span class="stat-add' + (part.add < 0 ? ' is-minus' : '') + '"' +
+        (hint ? ' title="' + hint + '"' : '') + '>' +
+        (part.add < 0 ? '−' : '+') + fmt(Math.abs(part.add)) + ' ' + SOURCE[part.id] + '</span>';
+    });
+    if (!stat.parts.length) html += '<span class="stat-none">бонусов нет</span>';
+    return html + '</span><span class="stat-total">итого ' + fmt(stat.total) + '</span></div>';
+  }
+
+  UI.renderMenuStats = function () {
+    if (!window.Upgrades || !window.Shop) return;
+    ['omnom', 'cat'].forEach(function (hero) {
+      var box = document.getElementById('stats-' + hero);
+      if (!box) return;
+      var s = Upgrades.sheet(hero);
+      box.innerHTML =
+        statRow('⚔', 'Урон', 'обычный', s.damage, round1, s.names) +
+        statRow('🛡', 'Защита', 'обычная', s.dodge, pct, s.names) +
+        statRow('♥', 'Сердечки', 'обычно', s.hp, String, s.names);
+    });
+  };
+
   UI.formatTime = formatTime;
   window.UI = UI;
 })();
