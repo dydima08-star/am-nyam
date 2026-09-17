@@ -14,7 +14,7 @@
   'use strict';
 
   var Game = {
-    VERSION: 20,        // номер версии — видно в углу экрана, чтобы понимать,
+    VERSION: 21,        // номер версии — видно в углу экрана, чтобы понимать,
                          // обновился ли сайт после заливки
     W: 960,              // логическая ширина арены
     H: 600,              // логическая высота арены
@@ -26,7 +26,7 @@
     fps: 60,
     pixelScale: 1,       // сколько реальных пикселей канваса в одном логическом
 
-    world: 1,            // номер текущего мира (1…20)
+    world: 1,            // номер текущего мира (1…24)
     mod: {},             // особенность арены: лёд, песок, темнота, ветер
     wind: { x: 0, y: 0, timer: 0 },
     stats: { candy: 0, candyTotal: 0, kills: 0 },  // конфеты и убитые слизни
@@ -36,7 +36,7 @@
     mapTimer: 0,         // отсчёт до возврата на карту после пройденного мира
     bossBonus: null,     // награда за побеждённого босса (для подписи «Мир пройден»)
     endless: false,      // идёт бесконечная волна (js/endless.js)
-    finalWin: false,     // только что пройден двадцатый мир
+    finalWin: false,     // только что пройден последний мир
 
     /**
      * Границы арены: дальше этих координат герои (а потом и враги) не уходят.
@@ -390,6 +390,40 @@
       c.fillStyle = 'rgba(0,0,0,0.10)';
       c.beginPath(); c.arc(W - 130, 82, 7, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(W - 108, 100, 5, 0, Math.PI * 2); c.fill();
+    },
+
+    /** Облака: пушистые облачка, радуга и искорки. */
+    cloud: function (c, W, H, rnd, world) {
+      // радуга за облаками
+      var rc = ['#ff8f8f', '#ffc46e', '#fff08a', '#8fe6a8', '#8fc8ff', '#c9a6ff'];
+      c.lineWidth = 14;
+      c.globalAlpha = 0.28;
+      for (var i = 0; i < rc.length; i++) {
+        c.strokeStyle = rc[i];
+        c.beginPath(); c.arc(W * 0.24, H + 60, 360 - i * 14, Math.PI * 1.08, Math.PI * 1.92); c.stroke();
+      }
+      c.globalAlpha = 1;
+      // облачка — по пять кружочков в каждом
+      for (i = 0; i < 18; i++) {
+        var cx = rnd() * W, cy = rnd() * H, cr = 16 + rnd() * 20;
+        c.fillStyle = 'rgba(255,255,255,' + (0.45 + rnd() * 0.3) + ')';
+        c.beginPath();
+        c.arc(cx, cy, cr, 0, Math.PI * 2);
+        c.arc(cx - cr * 1.1, cy + cr * 0.35, cr * 0.75, 0, Math.PI * 2);
+        c.arc(cx + cr * 1.1, cy + cr * 0.35, cr * 0.8, 0, Math.PI * 2);
+        c.arc(cx - cr * 0.45, cy + cr * 0.5, cr * 0.7, 0, Math.PI * 2);
+        c.arc(cx + cr * 0.5, cy + cr * 0.55, cr * 0.7, 0, Math.PI * 2);
+        c.fill();
+      }
+      // искорки
+      for (i = 0; i < 60; i++) {
+        c.fillStyle = world.accent[(rnd() * 4) | 0];
+        c.globalAlpha = 0.5 + rnd() * 0.5;
+        c.beginPath();
+        c.arc(rnd() * W, rnd() * H, 1.5 + rnd() * 2, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.globalAlpha = 1;
     }
   };
 
@@ -503,11 +537,12 @@
   Game.applyWorld = function (worldNum) {
     var world = Config.world(worldNum);
     Game.world = world.num;
+    var mods = [].concat(world.modifier || []);   // одна особенность или несколько сразу
     Game.mod = {
-      ice: world.modifier === 'ice',
-      sand: world.modifier === 'sand',
-      dark: world.modifier === 'dark',
-      wind: world.modifier === 'wind'
+      ice: mods.indexOf('ice') >= 0,
+      sand: mods.indexOf('sand') >= 0,
+      dark: mods.indexOf('dark') >= 0,
+      wind: mods.indexOf('wind') >= 0
     };
     Game.wind = { x: 0, y: 0, timer: 0 };
     bgCache = null;                      // фон нового мира
@@ -807,7 +842,7 @@
 
   /* ------------------------------------------------------------------------
    * Звёздный ветер: раз в несколько секунд меняет направление и сдувает всех.
-   * Действует только в мирах Звёздной страны.
+   * Действует в мирах Звёздной страны и Облачного королевства.
    * ---------------------------------------------------------------------- */
   function updateWind(dt) {
     if (!Game.mod.wind) return;
@@ -817,7 +852,8 @@
       var a = Math.random() * Math.PI * 2;
       Game.wind.x = Math.cos(a) * 46;
       Game.wind.y = Math.sin(a) * 30;
-      Game.banner('Звёздный ветер!', 'держитесь лапками', 1.4);
+      var region = Config.world(Game.world).region;
+      Game.banner(region.windText || 'Звёздный ветер!', 'держитесь лапками', 1.4);
     }
   }
 

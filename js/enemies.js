@@ -89,9 +89,22 @@
     moon: { name: 'лунный слизень', hp: 9, speed: 48, r: 28, damage: 2, candy: 6, dust: 0.05,
       body: '#e7e2ff', dark: '#6a55c9', knockResist: 0.5, ghost: true, regen: 1.2 },
 
+    /* --- Облачное королевство --- */
+    cloudlet: { name: 'облачко', hp: 7, speed: 62, r: 28, damage: 2, candy: 6, dust: 0.05,
+      body: '#ffffff', dark: '#8fa8c8', knockResist: 0.3, ghost: true, wiggle: 2,
+      split: { type: 'fast', count: 2 } },
+
+    rainbow: { name: 'радужка', hp: 8, speed: 70, r: 24, damage: 2, candy: 6, dust: 0.05,
+      body: '#f3e8ff', dark: '#8a6ac9', knockResist: 0.3,
+      orbit: 230, shootEvery: 1.6, bulletSpeed: 250, keepDistance: 230, slowShot: 1 },
+
+    thunder: { name: 'грозовичок', hp: 9, speed: 60, r: 26, damage: 2, candy: 7, dust: 0.055,
+      body: '#9aa3c8', dark: '#3a4266', knockResist: 0.4, spiky: true,
+      chargeEvery: 2.2, chargePower: 680, explode: { radius: 100, damage: 2 } },
+
     shade: { name: 'тень короля', hp: 14, speed: 54, r: 32, damage: 3, candy: 8, dust: 0.06,
       body: '#5a2f52', dark: '#1a0d1a', knockResist: 0.8, shield: 5,
-      summon: { type: 'spike', every: 5, count: 2 } }
+      summon: { type: 'spike', every: 6, count: 1 } }
   };
 
   /* ------------------------------------------------------------------------
@@ -1031,6 +1044,40 @@
       c.lineTo(0, -h * 1.9); c.lineTo(w * 0.2, -h * 1.45);
       c.lineTo(w * 0.6, -h * 1.75); c.lineTo(w * 0.6, -h * 1.2);
       c.closePath(); c.fill(); outline(c, t, 2);
+    },
+
+    cloudlet: function (c, e, w, h, r, t) {       // пушистые облачные бока
+      c.fillStyle = '#ffffff';
+      for (var i = -1; i <= 1; i += 2) {
+        c.beginPath();
+        c.arc(i * w * 0.95, -h * 0.55, w * 0.32, 0, Math.PI * 2);
+        c.arc(i * w * 0.7, -h * 1.15, w * 0.28, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.beginPath(); c.arc(0, -h * 1.45, w * 0.34, 0, Math.PI * 2); c.fill();
+    },
+
+    rainbow: function (c, e, w, h, r, t) {        // радуга-дуга над головой
+      var rc = ['#ff8f8f', '#ffd36e', '#8fe6a8', '#8fc8ff', '#c9a6ff'];
+      c.lineWidth = 3;
+      for (var i = 0; i < rc.length; i++) {
+        c.strokeStyle = rc[i];
+        c.beginPath(); c.arc(0, -h * 0.9, w * 0.95 - i * 3, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+      }
+    },
+
+    thunder: function (c, e, w, h, r, t) {        // молния на лбу и тучка
+      c.fillStyle = '#6f789e';
+      c.beginPath();
+      c.arc(-w * 0.35, -h * 1.45, w * 0.3, 0, Math.PI * 2);
+      c.arc(w * 0.3, -h * 1.5, w * 0.34, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#ffe066';
+      c.beginPath();
+      c.moveTo(w * 0.1, -h * 1.35); c.lineTo(-w * 0.2, -h * 1.0); c.lineTo(0, -h * 1.0);
+      c.lineTo(-w * 0.12, -h * 0.72); c.lineTo(w * 0.22, -h * 1.1); c.lineTo(w * 0.02, -h * 1.1);
+      c.closePath(); c.fill(); outline(c, t, 1.5);
+      drawSpikes(c, t, w, h, 3, 7);
     }
   };
 

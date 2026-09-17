@@ -1,7 +1,7 @@
 /* ============================================================================
- * js/worldmap.js — карта двадцати миров.
+ * js/worldmap.js — карта двадцати четырёх миров.
  *
- * После выбора режима («Один игрок» или «Двое») открывается карта: пять краёв
+ * После выбора режима («Один игрок» или «Двое») открывается карта: шесть краёв
  * по четыре мира. Пройденные отмечены звёздочкой, следующий открывается после
  * победы, остальные закрыты на замок. Любой пройденный мир можно переиграть —
  * так удобнее копить конфеты на лавку.
@@ -23,9 +23,9 @@
       document.getElementById('topbar').hidden = true;
     },
 
-    /** Доступен ли мир. */
+    /** Доступен ли мир (или пройден предыдущий — так новые миры откроются и у старых сохранений). */
     isOpen: function (num) {
-      return num <= Shop.progress.maxWorld;
+      return num <= Shop.progress.maxWorld || WorldMap.isCleared(num - 1);
     },
 
     isCleared: function (num) {
@@ -35,6 +35,10 @@
     /** Отметить мир пройденным и открыть следующий. */
     markCleared: function (num) {
       Shop.progress.cleared[num] = true;
+      // Старое сохранение могло застрять на прежнем последнем мире — догоняем
+      for (var k = Shop.progress.maxWorld; k < Config.count && Shop.progress.cleared[k]; k++) {
+        Shop.progress.maxWorld = k + 1;
+      }
       if (num + 1 > Shop.progress.maxWorld && num < Config.count) {
         Shop.progress.maxWorld = num + 1;
       }

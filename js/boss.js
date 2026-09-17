@@ -1,5 +1,5 @@
 /* ============================================================================
- * js/boss.js — боссы: по одному в конце каждого из двадцати миров.
+ * js/boss.js — боссы: по одному в конце каждого из двадцати четырёх миров.
  *
  * Босс живёт в том же списке, что и обычные слизни (Enemies.list), только с
  * пометкой isBoss — поэтому удары мечом, отбрасывание и всё остальное работают
@@ -24,7 +24,7 @@
   'use strict';
 
   /* ------------------------------------------------------------------------
-   * Двадцать боссов. hp — базовое здоровье (дальше умножается на сложность
+   * Двадцать четыре босса. hp — базовое здоровье (дальше умножается на сложность
    * мира), shape — форма тела, abilities — наборы приёмов по фазам.
    * ---------------------------------------------------------------------- */
   var BOSSES = [
@@ -104,16 +104,33 @@
       hp: 326, r: 58, speed: 74, body: '#8fd6ff', dark: '#2f5d8a', accent: '#ffffff',
       abilities: [['dash', 'dash', 'spread'], ['dash', 'spin', 'spread'], ['dash', 'spin', 'spread', 'summon']] },
 
-    { name: 'Король конфет', title: 'последний и самый вредный', shape: 'kingcrown',
+    { name: 'Король конфет', title: 'хозяин звёздного замка', shape: 'kingcrown',
       hp: 420, r: 76, speed: 52, body: '#ff8fd0', dark: '#8a2f6a', accent: '#ffdf5e',
       abilities: [['summon', 'spread', 'dash'], ['summon', 'spread', 'slam', 'shield'],
-                  ['summon', 'spread', 'spin', 'dash', 'slam']] }
+                  ['summon', 'spread', 'spin', 'dash', 'slam']] },
+
+    { name: 'Облачный барашек', title: 'пушистый, но бодается', shape: 'fleece',
+      hp: 440, r: 70, speed: 56, body: '#ffffff', dark: '#8fa8c8', accent: '#ffd6ec',
+      abilities: [['dash', 'summon'], ['dash', 'slam', 'summon'], ['dash', 'spin', 'slam', 'summon']] },
+
+    { name: 'Радужный единорог', title: 'стреляет всеми цветами', shape: 'horn',
+      hp: 470, r: 64, speed: 60, body: '#f3e8ff', dark: '#8a6ac9', accent: '#ffdf5e',
+      abilities: [['spread', 'aimed'], ['spread', 'aimed', 'dash'], ['spread', 'spin', 'aimed', 'summon']] },
+
+    { name: 'Грозовой великан', title: 'гремит и мечет молнии', shape: 'bolt',
+      hp: 500, r: 76, speed: 42, body: '#8a93b8', dark: '#3a4266', accent: '#ffe066',
+      abilities: [['slam', 'aimed'], ['slam', 'spread', 'puddle'], ['slam', 'spin', 'spread', 'summon']] },
+
+    { name: 'Тёмный Король конфет', title: 'вернулся — и он последний', shape: 'darkcrown',
+      hp: 600, r: 80, speed: 56, body: '#5a2f52', dark: '#1a0d1a', accent: '#ffdf5e',
+      abilities: [['spread', 'dash', 'aimed'], ['summon', 'spread', 'slam', 'shield'],
+                  ['summon', 'spread', 'spin', 'dash', 'slam', 'puddle']] }
   ];
 
   var Boss = {
     list: BOSSES,
 
-    /** Описание босса для мира (1…20). */
+    /** Описание босса для мира (1…24). */
     forWorld: function (num) {
       return BOSSES[Math.max(0, Math.min(BOSSES.length - 1, (num || 1) - 1))];
     },
@@ -129,7 +146,7 @@
       e.r = def.r;
       e.speed = def.speed;
       e.hp = e.maxHp = Math.round(def.hp * (0.8 + world.enemyHp * 0.6));
-      e.damage = 2 + Math.floor((worldNum - 1) / 5);
+      e.damage = 2 + Math.min(3, Math.floor((worldNum - 1) / 5));
       e.phase = 1;
       e.abilityTimer = 2.2;       // первая атака не сразу
       e.abilityIndex = 0;
@@ -892,6 +909,93 @@
       c.beginPath(); c.arc(-w * 0.45, -h * 1.4, 4.5, 0, Math.PI * 2); c.fill();
       c.beginPath(); c.arc(w * 0.45, -h * 1.4, 4.5, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#ffffff';              // пушистый воротник
+      for (var i = -3; i <= 3; i++) {
+        c.beginPath();
+        c.arc(i * w * 0.28, -h * 0.22, w * 0.17, 0, Math.PI * 2);
+        c.fill();
+      }
+    },
+
+    /* 21 — Облачный барашек: кудряшки-облачка и рожки-завитки */
+    fleece: function (c, e, w, h, def) {
+      c.fillStyle = '#ffffff';
+      for (var i = -3; i <= 3; i++) {
+        c.beginPath();
+        c.arc(i * w * 0.24, -h * 1.38 + Math.abs(i) * h * 0.1, w * 0.2, 0, Math.PI * 2);
+        c.fill(); edge(c, def, 2.5);
+      }
+      c.strokeStyle = def.accent; c.lineWidth = 7; c.lineCap = 'round';
+      for (var s = -1; s <= 1; s += 2) {        // завиток слева и его отражение справа
+        c.save();
+        c.scale(s, 1);
+        c.beginPath();
+        c.arc(w * 0.78, -h * 1.0, w * 0.2, -Math.PI * 0.6, Math.PI * 0.9);
+        c.stroke();
+        c.restore();
+      }
+    },
+
+    /* 22 — Радужный единорог: золотой рог и радужная грива */
+    horn: function (c, e, w, h, def) {
+      var mane = ['#ff8f8f', '#ffc46e', '#8fe6a8', '#8fc8ff', '#c9a6ff'];
+      c.lineCap = 'round'; c.lineWidth = 7;
+      for (var i = 0; i < mane.length; i++) {
+        c.strokeStyle = mane[i];
+        c.beginPath();
+        c.moveTo(-w * 0.1 - i * w * 0.14, -h * 1.3 + i * h * 0.06);
+        c.quadraticCurveTo(-w * 0.6 - i * w * 0.1, -h * 1.1 + Math.sin(Game.time * 3 + i) * 5,
+          -w * 0.75 - i * w * 0.06, -h * 0.5 + i * h * 0.05);
+        c.stroke();
+      }
+      c.fillStyle = def.accent;
+      c.beginPath();
+      c.moveTo(-w * 0.14, -h * 1.32); c.lineTo(w * 0.14, -h * 1.32); c.lineTo(w * 0.05, -h * 2.25);
+      c.closePath(); c.fill(); edge(c, def, 3);
+      c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 2;
+      for (var k = 1; k <= 3; k++) {
+        var y = -h * (1.32 + k * 0.22);
+        c.beginPath(); c.moveTo(-w * (0.13 - k * 0.03), y); c.lineTo(w * (0.13 - k * 0.025), y - 4); c.stroke();
+      }
+    },
+
+    /* 23 — Грозовой великан: тучка на голове и молнии */
+    bolt: function (c, e, w, h, def) {
+      c.fillStyle = '#5d668c';
+      c.beginPath();
+      c.arc(0, -h * 1.55, w * 0.34, 0, Math.PI * 2);
+      c.arc(-w * 0.4, -h * 1.4, w * 0.26, 0, Math.PI * 2);
+      c.arc(w * 0.42, -h * 1.42, w * 0.28, 0, Math.PI * 2);
+      c.fill();
+      if (Math.sin(Game.time * 5) > 0.2) {       // молния то вспыхивает, то гаснет
+        c.fillStyle = def.accent;
+        for (var s = -1; s <= 1; s += 2) {
+          var x = s * w * 0.95;
+          c.beginPath();
+          c.moveTo(x, -h * 1.5); c.lineTo(x + s * 10, -h * 1.1); c.lineTo(x - s * 2, -h * 1.1);
+          c.lineTo(x + s * 8, -h * 0.65); c.lineTo(x - s * 12, -h * 1.2); c.lineTo(x - s * 1, -h * 1.2);
+          c.closePath(); c.fill(); edge(c, def, 2);
+        }
+      }
+    },
+
+    /* 24 — Тёмный Король конфет: огромная корона и тёмная дымка */
+    darkcrown: function (c, e, w, h, def) {
+      c.save();
+      c.globalAlpha = 0.3 + Math.sin(Game.time * 2.4) * 0.1;
+      var g = c.createRadialGradient(0, -h * 0.8, w * 0.4, 0, -h * 0.8, w * 1.9);
+      g.addColorStop(0, '#8a2f6a');
+      g.addColorStop(1, 'rgba(26,13,26,0)');
+      c.fillStyle = g;
+      c.beginPath(); c.arc(0, -h * 0.8, w * 1.9, 0, Math.PI * 2); c.fill();
+      c.restore();
+      c.fillStyle = def.accent;
+      crownPath(c, -h * 1.3, w * 0.8, h * 1.1);
+      c.fill(); edge(c, def, 4);
+      c.fillStyle = '#b44dff';
+      c.beginPath(); c.arc(0, -h * 1.55, 7, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(-w * 0.5, -h * 1.45, 5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(w * 0.5, -h * 1.45, 5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#2a1428';              // тёмный воротник
       for (var i = -3; i <= 3; i++) {
         c.beginPath();
         c.arc(i * w * 0.28, -h * 0.22, w * 0.17, 0, Math.PI * 2);
