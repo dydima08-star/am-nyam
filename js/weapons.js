@@ -1,5 +1,5 @@
 /* ============================================================================
- * js/weapons.js — оружие героев: по 27 штук каждому.
+ * js/weapons.js — оружие героев: по 29 штук каждому.
  *
  * Всё оружие нарисовано прямо кодом (никаких картинок): одна и та же функция
  * рисует его и на карточке в магазине, и в лапке у героя, и вдоль дуги взмаха.
@@ -455,7 +455,7 @@
         grip(c, '#42338a', '#241a55', '#fff6b0');
       } },
 
-    { id: 'candyking', name: 'Меч Короля Сладостей', desc: 'Новая легенда лавки. Сильнее не бывает', secret: true,
+    { id: 'candyking', name: 'Меч Короля Сладостей', desc: 'Легенда лавки. Бьёт по-королевски', secret: true,
       dust: 18, damage: 5, speed: 1.25, reach: 1.45, knock: 1.7, trail: '#fff0b8',
       draw: function (c) {
         c.save();
@@ -475,6 +475,47 @@
         c.moveTo(-12, -8); c.lineTo(-9, -3); c.lineTo(-6, -9); c.lineTo(-3, -3);
         c.lineTo(0, -8); c.lineTo(0, 0); c.lineTo(-12, 0); c.closePath();
         c.fill(); c.stroke();
+      } },
+
+    /* --- из Облачного королевства: ещё чуть сильнее легенды --- */
+    { id: 'cloudblade', name: 'Облачный клинок', desc: 'Лёгкий как облако, острый как ветер', secret: true,
+      dust: 20, damage: 5.2, speed: 1.28, reach: 1.48, knock: 1.7, trail: '#e3f1ff',
+      draw: function (c) {
+        c.save();
+        c.globalAlpha = 0.45; c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.arc(22, -8, 7, 0, Math.PI * 2); c.arc(36, -9, 9, 0, Math.PI * 2);
+        c.arc(50, -6, 6, 0, Math.PI * 2); c.arc(30, 8, 7, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+        var g = c.createLinearGradient(4, 0, 64, 0);
+        g.addColorStop(0, '#8fc8ff'); g.addColorStop(0.5, '#e3f1ff'); g.addColorStop(1, '#ffffff');
+        blade(c, 64, 9.5, g, '#4e7fb3');
+        shine(c, 64);
+        c.fillStyle = '#ffffff'; c.strokeStyle = '#8fa8c8'; c.lineWidth = 1.4;
+        c.beginPath();
+        c.arc(8, -9, 4.5, 0, Math.PI * 2); c.arc(8, 9, 4.5, 0, Math.PI * 2);
+        c.fill(); c.stroke();
+        grip(c, '#4e7fb3', '#2f5d8a', '#ffffff');
+      } },
+
+    { id: 'thunderking', name: 'Громовой меч', desc: 'Новая легенда лавки. Сильнее не бывает', secret: true,
+      dust: 22, damage: 5.5, speed: 1.3, reach: 1.5, knock: 1.8, trail: '#fff59a',
+      draw: function (c) {
+        c.save();
+        c.globalAlpha = 0.35; c.fillStyle = '#ffe066';
+        c.beginPath(); c.ellipse(36, 0, 36, 16, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+        var g = c.createLinearGradient(4, -9, 66, 9);
+        g.addColorStop(0, '#3a4266'); g.addColorStop(0.5, '#7f89b0'); g.addColorStop(1, '#e6ebff');
+        blade(c, 66, 10, g, '#232b47');
+        c.fillStyle = '#ffe066'; c.strokeStyle = '#c99a13'; c.lineWidth = 1.3;
+        c.beginPath();
+        c.moveTo(14, -6); c.lineTo(30, -2); c.lineTo(25, 0); c.lineTo(50, 5);
+        c.lineTo(28, 2.5); c.lineTo(33, 0.5); c.closePath(); c.fill(); c.stroke();
+        shine(c, 66);
+        grip(c, '#3a4266', '#1a1f33', '#ffe066');
+        c.fillStyle = '#ffe066'; star(c, -12, 0, 5, 4, 0.35); c.fill();
       } }
   ];
 
@@ -870,7 +911,7 @@
         c.fillStyle = '#fff6b0'; star(c, 22, 0, 4); c.fill();
       } },
 
-    { id: 'galaxy', name: 'Галактический жезл', desc: 'Новая легенда лавки. Целая галактика в лапке', secret: true,
+    { id: 'galaxy', name: 'Галактический жезл', desc: 'Легенда лавки. Целая галактика в лапке', secret: true,
       dust: 18, damage: 4.8, speed: 1.3, reach: 1.45, knock: 1.4, trail: '#e0ccff',
       draw: function (c) {
         stick(c, 34, '#42338a', 6);
@@ -888,6 +929,46 @@
         c.fillStyle = '#ffffff';
         star(c, 41, -5, 2.4, 4, 0.3); c.fill();
         star(c, 51, 5, 2, 4, 0.3); c.fill();
+      } },
+
+    /* --- из Облачного королевства: ещё чуть сильнее легенды --- */
+    { id: 'rainbowstaff', name: 'Радужный посох', desc: 'Каждый взмах — новая радуга', secret: true,
+      dust: 20, damage: 5.0, speed: 1.33, reach: 1.48, knock: 1.45, trail: '#ffe0f0',
+      draw: function (c) {
+        stick(c, 34, '#8a6ac9', 6);
+        var rc = ['#ff8f8f', '#ffc46e', '#fff08a', '#8fe6a8', '#8fc8ff', '#c9a6ff'];
+        c.lineCap = 'round'; c.lineWidth = 3;
+        for (var i = 0; i < rc.length; i++) {
+          c.strokeStyle = rc[i];
+          c.beginPath(); c.arc(46, 6, 18 - i * 2.6, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+        }
+        c.fillStyle = '#ffffff'; c.strokeStyle = '#8fa8c8'; c.lineWidth = 1.4;
+        c.beginPath();
+        c.arc(30, 6, 5, 0, Math.PI * 2); c.arc(36, 8, 4, 0, Math.PI * 2);
+        c.arc(62, 6, 5, 0, Math.PI * 2); c.arc(56, 8, 4, 0, Math.PI * 2);
+        c.fill(); c.stroke();
+        c.fillStyle = '#fff6b0'; star(c, 46, 2, 4); c.fill();
+      } },
+
+    { id: 'skyscepter', name: 'Небесный скипетр', desc: 'Новая легенда лавки. Сильнее не бывает', secret: true,
+      dust: 22, damage: 5.3, speed: 1.35, reach: 1.5, knock: 1.5, trail: '#fff0c2',
+      draw: function (c) {
+        stick(c, 36, '#c99a13', 6);
+        c.save();
+        c.globalAlpha = 0.4; c.fillStyle = '#ffd9a8';
+        c.beginPath(); c.arc(48, 0, 22, 0, Math.PI * 2); c.fill();
+        c.restore();
+        c.fillStyle = '#ffffff'; c.strokeStyle = '#d98eae'; c.lineWidth = 1.8;
+        for (var s = -1; s <= 1; s += 2) {             // крылышки у навершия
+          c.beginPath();
+          c.moveTo(42, s * 4); c.quadraticCurveTo(38, s * 20, 50, s * 18);
+          c.quadraticCurveTo(46, s * 10, 50, s * 5); c.closePath(); c.fill(); c.stroke();
+        }
+        var g = c.createRadialGradient(50, 0, 1, 50, 0, 11);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, '#ffdf5e'); g.addColorStop(1, '#ff8fd0');
+        c.fillStyle = g; c.strokeStyle = '#a8508a'; c.lineWidth = 2;
+        star(c, 50, 0, 11); c.fill(); c.stroke();
+        c.fillStyle = '#ffffff'; star(c, 64, -8, 2.4, 4, 0.3); c.fill();
       } }
   ];
 

@@ -1,8 +1,8 @@
 /* ============================================================================
  * js/equipment.js — экипировка героев: шлем, тело, ноги и перчатки.
  *
- * У каждого героя свой набор из 32 вещей: по восемь на шлем, тело, ноги
- * и перчатки. Перчатки самые дорогие, зато дают урон, скорость ударов
+ * У каждого героя свой набор из 33 вещей: по восемь на шлем, ноги и перчатки
+ * и девять на тело. Перчатки самые дорогие, зато дают урон, скорость ударов
  * и шанс критического удара.
  *
  * Всё нарисовано кодом, как и оружие: одна функция рисует значок и на
@@ -301,6 +301,47 @@
     }
   }
 
+  /* --- из Облачного королевства --- */
+  function drawThunderArmor(c, col) {               // грозовые латы: тучки-наплечники и молния
+    c.save();
+    c.globalAlpha = 0.3; c.fillStyle = col.c;
+    c.beginPath(); c.ellipse(0, 0, 32, 26, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+    drawPlate(c, col);
+    c.fillStyle = '#e3f1ff'; c.strokeStyle = col.b; c.lineWidth = 2;
+    for (var s = -1; s <= 1; s += 2) {
+      c.beginPath();
+      c.arc(s * 22, -16, 7, 0, Math.PI * 2);
+      c.arc(s * 15, -19, 6, 0, Math.PI * 2);
+      c.fill(); c.stroke();
+    }
+    c.fillStyle = col.c; c.lineWidth = 1.6;
+    c.beginPath();
+    c.moveTo(4, -14); c.lineTo(-7, 1); c.lineTo(0, 1); c.lineTo(-5, 16);
+    c.lineTo(9, -3); c.lineTo(2, -3); c.closePath(); c.fill(); c.stroke();
+  }
+
+  function drawRainbowCape(c, col) {                // радужная мантия
+    c.save();
+    c.globalAlpha = 0.3; c.fillStyle = col.c;
+    c.beginPath(); c.ellipse(0, 0, 32, 26, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+    drawCape(c, col);
+    c.save();
+    c.beginPath();
+    c.moveTo(-10, -18); c.lineTo(10, -18); c.lineTo(26, 20);
+    c.quadraticCurveTo(0, 10, -26, 20); c.closePath(); c.clip();
+    var rc = ['#ff8f8f', '#ffc46e', '#fff08a', '#8fe6a8', '#8fc8ff', '#c9a6ff'];
+    c.lineWidth = 3.5;
+    for (var i = 0; i < rc.length; i++) {
+      c.strokeStyle = rc[i];
+      c.beginPath(); c.arc(0, 30, 34 - i * 3.5, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+    }
+    c.restore();
+    c.fillStyle = '#fff6b0'; c.strokeStyle = col.b; c.lineWidth = 1.3;
+    star(c, 0, -18, 5); c.fill(); c.stroke();
+  }
+
   /* --- самые-самые: рисунки для новых легенд --- */
   function drawStarCrown(c, col) {                  // звёздная корона
     c.save();
@@ -431,6 +472,8 @@
       { hp: 4, dodge: 0.16 }, drawPlate, { a: '#ff8fb4', b: '#a8284f' }, 10),
     item('body', 'wings', 'Крылья Ам Няма', 'от них удары пролетают мимо', 0,
       { hp: 5, dodge: 0.18 }, drawWings, { a: '#e8fbff', b: '#4e93b5', c: '#8fd14f' }, 12),
+    item('body', 'thunderarmor', 'Грозовые латы', 'новая легенда лавки — прочнее не бывает', 0,
+      { hp: 6, dodge: 0.20 }, drawThunderArmor, { a: '#9aa3c8', b: '#3a4266', c: '#ffe066' }, 15),
 
     item('boots', 'jumpers', 'Сапоги-прыгуны', 'лучшие ножки за конфеты', 480,
       { speed: 0.20, dodge: 0.05 }, drawBoots, { a: '#4e8a2a', b: '#2a4f14', c: '#ffdf5e' }),
@@ -510,6 +553,8 @@
       { hp: 4, dodge: 0.16 }, drawPlate, { a: '#fff0f5', b: '#d45d8e' }, 10),
     item('body', 'wings', 'Крылья феи', 'от них удары пролетают мимо', 0,
       { hp: 5, dodge: 0.18 }, drawWings, { a: '#ffe6f7', b: '#c23a9e', c: '#c9a6ff' }, 12),
+    item('body', 'rainbowcape', 'Радужная мантия', 'новая легенда лавки — прочнее не бывает', 0,
+      { hp: 6, dodge: 0.20 }, drawRainbowCape, { a: '#fff0fa', b: '#8a6ac9', c: '#ffd6ec' }, 15),
 
     item('boots', 'ballet', 'Балетки', 'лучшие ножки за конфеты', 480,
       { speed: 0.20, dodge: 0.05 }, drawSneakers, { a: '#ffb3d1', b: '#a8508a', c: '#fff0f5' }),
